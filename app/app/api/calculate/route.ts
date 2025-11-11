@@ -83,18 +83,21 @@ export async function POST(request: NextRequest) {
     
     if (conversationHistory && conversationHistory.length > 0) {
       // This is a dispute - convert conversation history to Responses API format
-      messages = conversationHistory.map(msg => ({
-        type: 'message' as const,
-        role: msg.role as 'user' | 'system' | 'assistant' | 'developer',
-        content: msg.content
-      }));
+      // Filter out assistant messages as they should be in output, not input
+      messages = conversationHistory
+        .filter(msg => msg.role !== 'assistant')
+        .map(msg => ({
+          type: 'message' as const,
+          role: msg.role as 'user' | 'system' | 'developer',
+          content: msg.content
+        }));
       
       // Add the dispute feedback as a new user message
       if (disputeFeedback) {
         messages.push({
           type: 'message',
           role: 'user',
-          content: `The user has disputed your previous answer with the following feedback: "${disputeFeedback}"\n\nPlease recalculate and provide a corrected response in the same JSON format with "explanation" first, then "result". Address the user's concern in your explanation.`
+          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nPlease recalculate and provide a corrected response in the same JSON format with "explanation" first, then "result". Address the user's concern in your explanation.`
         });
       }
     } else {
