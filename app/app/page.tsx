@@ -25,12 +25,12 @@ interface DisputeResponse {
       totalTokens: number;
     };
     timestamp: string;
-    safety?: {
-      input: SafetyInfo;
-      output: SafetyInfo;
-    };
   };
   disputeFeedback: string;
+  safety?: {
+    input: SafetyInfo;
+    output: SafetyInfo;
+  };
 }
 
 interface CalculationResult {
@@ -48,10 +48,10 @@ interface CalculationResult {
       totalTokens: number;
     };
     timestamp: string;
-    safety?: {
-      input: SafetyInfo;
-      output: SafetyInfo;
-    };
+  };
+  safety?: {
+    input: SafetyInfo;
+    output: SafetyInfo;
   };
 }
 
@@ -159,6 +159,35 @@ export default function Home() {
         const updated = [calculationResult, ...prev].slice(0, 10);
         return updated;
       });
+
+      // Asynchronously check safety without blocking the UI
+      fetch('/api/safety-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: `Mathematical expression: ${expression}`,
+          agentResponse: data.explanation || '',
+        }),
+      })
+        .then(res => res.json())
+        .then((safetyData) => {
+          const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
+          if (typedSafetyData.safety) {
+            setCurrentResult(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                safety: {
+                  input: typedSafetyData.safety!.input,
+                  output: typedSafetyData.safety!.output || { isSafe: true, classification: 'N/A' }
+                }
+              };
+            });
+          }
+        })
+        .catch(err => console.error('Safety check failed:', err));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -230,6 +259,43 @@ export default function Home() {
 
       setDisputeMode(false);
       setDisputeFeedback('');
+
+      // Asynchronously check safety for the dispute
+      fetch('/api/safety-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: `Dispute feedback: ${disputeFeedback}`,
+          agentResponse: data.explanation || '',
+        }),
+      })
+        .then(res => res.json())
+        .then((safetyData) => {
+          const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
+          if (typedSafetyData.safety) {
+            setCurrentResult(prev => {
+              if (!prev || !prev.disputes) return prev;
+              const updatedDisputes = [...prev.disputes];
+              const lastDisputeIndex = updatedDisputes.length - 1;
+              if (lastDisputeIndex >= 0) {
+                updatedDisputes[lastDisputeIndex] = {
+                  ...updatedDisputes[lastDisputeIndex],
+                  safety: {
+                    input: typedSafetyData.safety!.input,
+                    output: typedSafetyData.safety!.output || { isSafe: true, classification: 'N/A' }
+                  }
+                };
+              }
+              return {
+                ...prev,
+                disputes: updatedDisputes
+              };
+            });
+          }
+        })
+        .catch(err => console.error('Safety check failed:', err));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during dispute');
     } finally {
@@ -409,6 +475,50 @@ export default function Home() {
                               {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
                             </div>
                           )}
+                          {/* Safety Classification for Dispute */}
+                          {dispute.safety && (
+                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
+                              <div className="text-xs font-semibold mb-2 opacity-75">
+                                Safety Classification <span className="badge badge-xs badge-neutral ml-1">Llama Guard 3</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="opacity-75">Dispute Input:</span>{' '}
+                                  {dispute.safety.input.isSafe ? (
+                                    <span className="badge badge-success badge-xs">Safe</span>
+                                  ) : (
+                                    <>
+                                      <span className="badge badge-error badge-xs">Unsafe</span>
+                                      {dispute.safety.input.violatedCategories && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {dispute.safety.input.violatedCategories.map((cat: string, idx: number) => (
+                                            <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="opacity-75">AI Response:</span>{' '}
+                                  {dispute.safety.output.isSafe ? (
+                                    <span className="badge badge-success badge-xs">Safe</span>
+                                  ) : (
+                                    <>
+                                      <span className="badge badge-error badge-xs">Unsafe</span>
+                                      {dispute.safety.output.violatedCategories && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {dispute.safety.output.violatedCategories.map((cat: string, idx: number) => (
+                                            <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -484,31 +594,31 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Safety Classification - Llama Guard 3 */}
-                {currentResult.metadata?.safety && (
+                {/* Safety Classification for Initial Response */}
+                {currentResult.safety && (
                   <div className="card bg-base-200 card-border">
-                    <div className="card-body">
-                      <h3 className="card-title text-sm flex items-center gap-2">
-                        🛡️ Safety Classification
+                    <div className="card-body p-4">
+                      <h3 className="card-title text-sm">
+                        Safety Classification
                         <span className="badge badge-xs badge-neutral">Llama Guard 3</span>
                       </h3>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                         {/* Input Safety */}
-                        <div className="space-y-2">
-                          <div className="font-semibold text-xs opacity-75 flex items-center gap-2">
+                        <div className="space-y-1">
+                          <div className="font-semibold opacity-75 flex items-center gap-2">
                             User Input
-                            {currentResult.metadata.safety.input.isSafe ? (
+                            {currentResult.safety.input.isSafe ? (
                               <span className="badge badge-success badge-xs">Safe</span>
                             ) : (
                               <span className="badge badge-error badge-xs">Unsafe</span>
                             )}
                           </div>
-                          {!currentResult.metadata.safety.input.isSafe && currentResult.metadata.safety.input.violatedCategories && (
-                            <div className="text-xs">
-                              <span className="opacity-75">Violated categories:</span>
+                          {!currentResult.safety.input.isSafe && currentResult.safety.input.violatedCategories && (
+                            <div>
+                              <span className="opacity-75">Categories:</span>
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {currentResult.metadata.safety.input.violatedCategories.map((cat, idx) => (
+                                {currentResult.safety.input.violatedCategories.map((cat: string, idx: number) => (
                                   <span key={idx} className="badge badge-error badge-xs">{cat}</span>
                                 ))}
                               </div>
@@ -517,20 +627,20 @@ export default function Home() {
                         </div>
 
                         {/* Output Safety */}
-                        <div className="space-y-2">
-                          <div className="font-semibold text-xs opacity-75 flex items-center gap-2">
+                        <div className="space-y-1">
+                          <div className="font-semibold opacity-75 flex items-center gap-2">
                             AI Response
-                            {currentResult.metadata.safety.output.isSafe ? (
+                            {currentResult.safety.output.isSafe ? (
                               <span className="badge badge-success badge-xs">Safe</span>
                             ) : (
                               <span className="badge badge-error badge-xs">Unsafe</span>
                             )}
                           </div>
-                          {!currentResult.metadata.safety.output.isSafe && currentResult.metadata.safety.output.violatedCategories && (
-                            <div className="text-xs">
-                              <span className="opacity-75">Violated categories:</span>
+                          {!currentResult.safety.output.isSafe && currentResult.safety.output.violatedCategories && (
+                            <div>
+                              <span className="opacity-75">Categories:</span>
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {currentResult.metadata.safety.output.violatedCategories.map((cat, idx) => (
+                                {currentResult.safety.output.violatedCategories.map((cat: string, idx: number) => (
                                   <span key={idx} className="badge badge-error badge-xs">{cat}</span>
                                 ))}
                               </div>
@@ -539,8 +649,8 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="text-xs opacity-50 mt-2">
-                        Content moderation powered by meta-llama/llama-guard-3-8b
+                      <div className="text-xs opacity-50 mt-1">
+                        Powered by meta-llama/llama-guard-3-8b
                       </div>
                     </div>
                   </div>
