@@ -451,7 +451,7 @@ export default function Home() {
                 {/* Display Disputes if any */}
                 {currentResult.disputes && currentResult.disputes.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="font-bold text-sm opacity-75">📝 Dispute History ({currentResult.disputes.length})</h3>
+                    <h3 className="font-bold text-sm opacity-75">Dispute History ({currentResult.disputes.length})</h3>
                     {currentResult.disputes.map((dispute, index) => (
                       <div key={index} className="card bg-base-300 card-border">
                         <div className="card-body p-4">
