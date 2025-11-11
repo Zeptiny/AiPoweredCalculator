@@ -17,6 +17,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   'S11': 'Self-Harm',
   'S12': 'Sexual Content',
   'S13': 'Elections',
+  'S14': 'Code Interpreter Abuse',
 };
 
 interface ChatMessage {
@@ -498,7 +499,7 @@ export default function Home() {
                           {dispute.safety && (
                             <div className="mt-3 p-2 bg-base-100 rounded-lg">
                               <div className="text-xs font-semibold mb-2 opacity-75">
-                                Safety Classification <span className="badge badge-xs badge-neutral ml-1">Llama Guard 3</span>
+                                Safety Classification
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                                 <div>
@@ -633,7 +634,6 @@ export default function Home() {
                     <div className="card-body p-4">
                       <h3 className="card-title text-sm">
                         Safety Classification
-                        <span className="badge badge-xs badge-neutral">Llama Guard 3</span>
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -690,9 +690,6 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="text-xs opacity-50 mt-1">
-                        Powered by meta-llama/llama-guard-3-8b
-                      </div>
                     </div>
                   </div>
                 )}
