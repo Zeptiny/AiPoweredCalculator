@@ -258,47 +258,40 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
       try {
         parsedResponse = JSON.parse(cleanResponse);
       } catch {
-        // If JSON parsing fails and this is the CEMO (level 3), parse the unformatted text
-        if (supervisorLevel.level === 3) {
-          console.log('Parsing unformatted CEMO response');
-          
-          // Extract agent name
-          const agentNameMatch = cleanResponse.match(/(?:I am|This is|name is)\s+([^,.\n]+(?:,\s*[A-Z]+(?:,\s*[A-Z]+)?)?)/i);
-          const agentName = agentNameMatch ? agentNameMatch[1].trim() : undefined;
-          
-          // Extract analysis/explanation
-          const analysisMatch = cleanResponse.match(/Analysis:[\s\S]*?\n([\s\S]*?)(?=\nFinal Answer:|$)/);
-          const explanation = analysisMatch ? analysisMatch[1].trim() : cleanResponse;
-          
-          // Extract final answer
-          const finalAnswerMatch = cleanResponse.match(/Final Answer:[\s\S]*?\n([\s\S]*?)(?=\nRecommendation:|$)/);
-          let finalAnswer = finalAnswerMatch ? finalAnswerMatch[1].trim() : 'Unknown';
-          // Remove "Our strategic numerical outcome is" prefix if present
-          finalAnswer = finalAnswer.replace(/^Our strategic numerical outcome is\s*/i, '').replace(/,.*$/, '').trim();
-          
-          // Extract recommendation
-          const recommendationMatch = cleanResponse.match(/Recommendation:[\s\S]*?\n([\s\S]*?)(?=\nConfidence:|$)/);
-          const recommendation = recommendationMatch ? recommendationMatch[1].trim() : '';
-          
-          // Extract confidence
-          const confidenceMatch = cleanResponse.match(/Confidence:[\s\S]*?(\d+)/);
-          const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 95;
-          
-          // Extract closing statement (everything after the confidence percentage)
-          const closingMatch = cleanResponse.match(/Confidence:[\s\S]*?%[\s\S]*([\s\S]*?)$/);
-          const closingStatement = closingMatch ? closingMatch[1].trim() : 'This decision is FINAL.';
-          
-          parsedResponse = {
-            agentName,
-            explanation,
-            finalAnswer,
-            recommendation,
-            confidence,
-            closingStatement
-          };
-        } else {
-          throw new Error('JSON parsing failed for non-CEMO supervisor');
-        }
+        // Extract agent name
+        const agentNameMatch = cleanResponse.match(/(?:I am|This is|name is)\s+([^,.\n]+(?:,\s*[A-Z]+(?:,\s*[A-Z]+)?)?)/i);
+        const agentName = agentNameMatch ? agentNameMatch[1].trim() : undefined;
+        
+        // Extract analysis/explanation
+        const analysisMatch = cleanResponse.match(/Analysis:[\s\S]*?\n([\s\S]*?)(?=\nFinal Answer:|$)/);
+        const explanation = analysisMatch ? analysisMatch[1].trim() : cleanResponse;
+        
+        // Extract final answer
+        const finalAnswerMatch = cleanResponse.match(/Final Answer:[\s\S]*?\n([\s\S]*?)(?=\nRecommendation:|$)/);
+        let finalAnswer = finalAnswerMatch ? finalAnswerMatch[1].trim() : 'Unknown';
+        // Remove "Our strategic numerical outcome is" prefix if present
+        finalAnswer = finalAnswer.replace(/^Our strategic numerical outcome is\s*/i, '').replace(/,.*$/, '').trim();
+        
+        // Extract recommendation
+        const recommendationMatch = cleanResponse.match(/Recommendation:[\s\S]*?\n([\s\S]*?)(?=\nConfidence:|$)/);
+        const recommendation = recommendationMatch ? recommendationMatch[1].trim() : '';
+        
+        // Extract confidence
+        const confidenceMatch = cleanResponse.match(/Confidence:[\s\S]*?(\d+)/);
+        const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 95;
+        
+        // Extract closing statement (everything after the confidence percentage)
+        const closingMatch = cleanResponse.match(/Confidence:[\s\S]*?%[\s\S]*([\s\S]*?)$/);
+        const closingStatement = closingMatch ? closingMatch[1].trim() : 'This decision is FINAL.';
+        
+        parsedResponse = {
+          agentName,
+          explanation,
+          finalAnswer,
+          recommendation,
+          confidence,
+          closingStatement
+        };
       }
     } catch (error) {
       console.error('Failed to parse supervisor response:', error);
