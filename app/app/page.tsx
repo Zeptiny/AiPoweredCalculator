@@ -51,12 +51,38 @@ interface DisputeResponse {
   };
 }
 
+interface SupervisorResponse {
+  supervisorLevel: number;
+  supervisorTitle: string;
+  verdict: string;
+  explanation: string;
+  finalAnswer: string;
+  recommendation: string;
+  confidence?: number;
+  closingStatement?: string;
+  isFinal: boolean;
+  canEscalate: boolean;
+  nextLevel: string | null;
+  userConcern?: string;
+  metadata?: {
+    processingTime: string;
+    model: string;
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    timestamp: string;
+  };
+}
+
 interface CalculationResult {
   expression: string;
   explanation: string;
   result: string;
   conversationHistory?: ChatMessage[];
   disputes?: DisputeResponse[];
+  supervisorReviews?: SupervisorResponse[];
   metadata?: {
     processingTime: string;
     model: string;
@@ -85,6 +111,10 @@ export default function Home() {
   const [expandedHistoryIndex, setExpandedHistoryIndex] = useState<number | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
   const [loadingSafety, setLoadingSafety] = useState(false);
+  const [loadingSupervisor, setLoadingSupervisor] = useState(false);
+  const [disputeCount, setDisputeCount] = useState(0);
+  const [supervisorLevel, setSupervisorLevel] = useState(0);
+  const [supervisorConcern, setSupervisorConcern] = useState("");
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -142,6 +172,9 @@ export default function Home() {
     setError('');
     setCurrentResult(null);
     setDisputeMode(false);
+    setDisputeCount(0);
+    setSupervisorLevel(0);
+    setSupervisorConcern('');
 
     // Simulate progressive loading steps
     const steps = [
@@ -297,6 +330,9 @@ export default function Home() {
         return prev;
       });
 
+      // Increment dispute counter
+      setDisputeCount(prev => prev + 1);
+
       setDisputeMode(false);
       setDisputeFeedback('');
 
@@ -348,12 +384,78 @@ export default function Home() {
     }
   };
 
+  const handleSupervisorReview = async () => {
+    if (!currentResult || !supervisorConcern.trim()) return;
+
+    setLoadingSupervisor(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/supervisor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          expression: currentResult.expression,
+          disputes: currentResult.disputes || [],
+          conversationHistory: currentResult.conversationHistory || [],
+          userConcern: supervisorConcern,
+          currentLevel: supervisorLevel
+        }),
+      });
+
+      const data = await response.json() as SupervisorResponse;
+
+      if (!response.ok) {
+        throw new Error('Failed to get supervisor review');
+      }
+
+      // Update current result with supervisor review
+      const updatedResult: CalculationResult = {
+        ...currentResult,
+        supervisorReviews: [...(currentResult.supervisorReviews || []), data]
+      };
+
+      setCurrentResult(updatedResult);
+      
+      // Update history
+      setHistory(prev => {
+        const index = prev.findIndex(item => 
+          item.expression === currentResult.expression && 
+          item.metadata?.timestamp === currentResult.metadata?.timestamp
+        );
+        
+        if (index !== -1) {
+          const newHistory = [...prev];
+          newHistory[index] = updatedResult;
+          return newHistory;
+        }
+        return prev;
+      });
+
+      // Update supervisor level
+      setSupervisorLevel(data.supervisorLevel);
+      
+      // Reset concern input
+      setSupervisorConcern('');
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during supervisor review');
+    } finally {
+      setLoadingSupervisor(false);
+    }
+  };
+
   const loadFromHistory = (item: CalculationResult) => {
     setExpression(item.expression);
     setCurrentResult(item);
     setShowHistory(false);
     setDisputeMode(false);
     setDisputeFeedback('');
+    setDisputeCount(item.disputes?.length || 0);
+    setSupervisorLevel(item.supervisorReviews?.length || 0);
+    setSupervisorConcern('');
   };
 
   const toggleHistoryExpand = (index: number) => {
@@ -631,10 +733,127 @@ export default function Home() {
                   <button 
                     className="btn btn-outline btn-warning btn-sm w-full"
                     onClick={() => setDisputeMode(true)}
-                    disabled={loading}
+                    disabled={loading || supervisorLevel >= 3}
                   >
                     Dispute This Answer
                   </button>
+                )}
+
+                {/* Supervisor Reviews */}
+                {currentResult.supervisorReviews && currentResult.supervisorReviews.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-bold text-sm opacity-75">Supervisor Reviews</h3>
+                    {currentResult.supervisorReviews.map((review, index) => (
+                      <div key={index} className={`card ${review.isFinal ? 'bg-error/10' : 'bg-info/10'} card-border`}>
+                        <div className="card-body p-4">
+                          <div className="flex items-start gap-2 justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-sm`}>
+                                Level {review.supervisorLevel}
+                              </span>
+                              <span className="font-bold text-sm">{review.supervisorTitle}</span>
+                            </div>
+                            {review.isFinal && (
+                              <span className="badge badge-error badge-outline badge-xs">FINAL</span>
+                            )}
+                          </div>
+                          
+                          {review.userConcern && (
+                            <div className="text-xs opacity-75 mt-2">
+                              <span className="font-semibold">User Concern:</span> "{review.userConcern}"
+                            </div>
+                          )}
+
+                          <div className="divider my-2"></div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <div className="font-bold text-xs opacity-75">Verdict:</div>
+                              <p className={`text-sm font-semibold ${review.verdict.toLowerCase().includes('incorrect') || review.verdict.toLowerCase().includes('wrong') ? 'text-error' : 'text-success'}`}>
+                                {review.verdict}
+                              </p>
+                            </div>
+                            <div>
+                              <div className="font-bold text-xs opacity-75">Analysis:</div>
+                              <p className="text-sm">{review.explanation}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs opacity-75">Final Answer:</span>
+                              <span className="font-mono font-bold text-lg">{review.finalAnswer}</span>
+                            </div>
+                            {review.recommendation && (
+                              <div>
+                                <div className="font-bold text-xs opacity-75">Recommendation:</div>
+                                <p className="text-sm italic">{review.recommendation}</p>
+                              </div>
+                            )}
+                            {review.confidence && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs opacity-75">Confidence:</span>
+                                <progress className="progress progress-info w-20" value={review.confidence} max="100"></progress>
+                                <span className="text-xs font-bold">{review.confidence}%</span>
+                              </div>
+                            )}
+                            {review.closingStatement && (
+                              <div className="alert alert-error mt-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                <span className="text-xs">{review.closingStatement}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {review.metadata && (
+                            <div className="text-xs opacity-50 mt-2">
+                              {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Supervisor Request Area */}
+                {supervisorLevel < 3 && (disputeCount >= 3 || (currentResult.disputes && currentResult.disputes.length > 0)) && (
+                  <div className="card bg-info/10 card-border">
+                    <div className="card-body p-4">
+                      <div className="flex items-center gap-2">
+                        <h3 className="card-title text-sm">Request Supervisor Review</h3>
+                        {disputeCount >= 3 && !currentResult.supervisorReviews?.length && (
+                          <span className="badge badge-warning badge-xs">Auto-escalation available</span>
+                        )}
+                      </div>
+                      <p className="text-xs opacity-75">
+                        {supervisorLevel === 0 && "A Senior Computation Specialist will review the calculation and all disputes."}
+                        {supervisorLevel === 1 && "Escalate to the Principal Mathematical Arbitrator for advanced analysis."}
+                        {supervisorLevel === 2 && "Final escalation to the Chief Executive of Mathematical Operations."}
+                      </p>
+                      <textarea
+                        className="textarea textarea-info w-full"
+                        placeholder="Describe your concern or why you need supervisor review..."
+                        value={supervisorConcern}
+                        onChange={(e) => setSupervisorConcern(e.target.value)}
+                        rows={2}
+                        disabled={loadingSupervisor}
+                      />
+                      <div className="card-actions justify-end">
+                        <button 
+                          className="btn btn-sm btn-info"
+                          onClick={handleSupervisorReview}
+                          disabled={loadingSupervisor || !supervisorConcern.trim()}
+                        >
+                          {loadingSupervisor ? (
+                            <>
+                              <span className="loading loading-spinner loading-sm"></span>
+                              Escalating...
+                            </>
+                          ) : (
+                            <>Call Supervisor (Level {supervisorLevel + 1})</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Usage Metadata */}
@@ -794,11 +1013,18 @@ export default function Home() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="font-mono text-sm font-bold flex-1">{item.expression}</div>
-                          {item.disputes && item.disputes.length > 0 && (
-                            <div className="badge badge-warning badge-sm">
-                              {item.disputes.length} dispute{item.disputes.length > 1 ? 's' : ''}
-                            </div>
-                          )}
+                          <div className="flex gap-1 flex-wrap">
+                            {item.disputes && item.disputes.length > 0 && (
+                              <div className="badge badge-warning badge-sm">
+                                {item.disputes.length} dispute{item.disputes.length > 1 ? 's' : ''}
+                              </div>
+                            )}
+                            {item.supervisorReviews && item.supervisorReviews.length > 0 && (
+                              <div className={`badge ${item.supervisorReviews[item.supervisorReviews.length - 1].isFinal ? 'badge-error' : 'badge-info'} badge-sm`}>
+                                Supervisor L{item.supervisorReviews[item.supervisorReviews.length - 1].supervisorLevel}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center justify-between text-xs opacity-75">
                           <span>= {item.result}</span>
