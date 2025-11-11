@@ -34,6 +34,7 @@ interface SafetyInfo {
 interface DisputeResponse {
   explanation: string;
   result: string;
+  confidence?: number;
   metadata?: {
     processingTime: string;
     model: string;
@@ -80,6 +81,7 @@ interface CalculationResult {
   expression: string;
   explanation: string;
   result: string;
+  confidence?: number;
   conversationHistory?: ChatMessage[];
   disputes?: DisputeResponse[];
   supervisorReviews?: SupervisorResponse[];
@@ -200,6 +202,7 @@ export default function Home() {
       const data = await response.json() as { 
         explanation?: string; 
         result?: string; 
+        confidence?: number;
         conversationHistory?: ChatMessage[];
         metadata?: CalculationResult['metadata'];
         error?: string;
@@ -213,6 +216,7 @@ export default function Home() {
         expression,
         explanation: data.explanation || '',
         result: data.result || '',
+        confidence: data.confidence,
         conversationHistory: data.conversationHistory,
         disputes: [],
         metadata: data.metadata
@@ -290,6 +294,7 @@ export default function Home() {
       const data = await response.json() as { 
         explanation?: string; 
         result?: string; 
+        confidence?: number;
         conversationHistory?: ChatMessage[];
         metadata?: CalculationResult['metadata'];
         error?: string;
@@ -302,6 +307,7 @@ export default function Home() {
       const disputeResponse: DisputeResponse = {
         explanation: data.explanation || '',
         result: data.result || '',
+        confidence: data.confidence,
         metadata: data.metadata,
         disputeFeedback: disputeFeedback
       };
@@ -596,7 +602,16 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="w-full">
-                    <div className="font-bold">Final Result</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold">Final Result</div>
+                      {currentResult.confidence && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs opacity-75">Confidence:</span>
+                          <progress className="progress progress-success w-20" value={currentResult.confidence} max="100"></progress>
+                          <span className="text-xs font-bold">{currentResult.confidence}%</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="text-3xl font-mono font-bold">{currentResult.result}</div>
                   </div>
                 </div>
@@ -624,6 +639,13 @@ export default function Home() {
                               <span className="font-bold text-xs opacity-75">Revised Result:</span>
                               <span className="font-mono font-bold text-lg">{dispute.result}</span>
                             </div>
+                            {dispute.confidence && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs opacity-75">Confidence:</span>
+                                <progress className="progress progress-warning w-20" value={dispute.confidence} max="100"></progress>
+                                <span className="text-xs font-bold">{dispute.confidence}%</span>
+                              </div>
+                            )}
                           </div>
                           {dispute.metadata && (
                             <div className="text-xs opacity-50 mt-2">
@@ -886,7 +908,6 @@ export default function Home() {
                     <div className="card-body p-4">
                       <h3 className="card-title text-sm">
                         Safety Classification
-                        <span className="badge badge-xs badge-neutral">Llama Guard 4</span>
                         <span className="loading loading-spinner loading-xs ml-2"></span>
                       </h3>
                       
@@ -916,7 +937,6 @@ export default function Home() {
                     <div className="card-body p-4">
                       <h3 className="card-title text-sm">
                         Safety Classification
-                        <span className="badge badge-xs badge-neutral">Llama Guard 4</span>
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -973,9 +993,6 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="text-xs opacity-50 mt-1">
-                        Powered by meta-llama/llama-guard-4-12b
-                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -1079,6 +1096,46 @@ export default function Home() {
                                   )}
                                 </div>
                               ))}
+                              
+                              {/* Supervisor Reviews in History */}
+                              {item.supervisorReviews && item.supervisorReviews.length > 0 && (
+                                <>
+                                  <div className="divider my-2"></div>
+                                  <div className="text-xs font-bold opacity-75 mb-2">Supervisor Reviews:</div>
+                                  {item.supervisorReviews.map((review, sIndex) => (
+                                    <div key={sIndex} className={`${review.isFinal ? 'bg-error/10' : 'bg-info/10'} p-2 rounded space-y-1`}>
+                                      <div className="flex items-start gap-2 justify-between">
+                                        <div className="flex items-center gap-1">
+                                          <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-xs shrink-0`}>
+                                            L{review.supervisorLevel}
+                                          </span>
+                                          <span className="text-xs font-bold">{review.supervisorTitle}</span>
+                                        </div>
+                                        {review.isFinal && (
+                                          <span className="badge badge-error badge-outline badge-xs">FINAL</span>
+                                        )}
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="opacity-75">Verdict:</span> <span className="font-semibold">{review.verdict}</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="opacity-75">Answer:</span> <span className="font-mono font-bold">{review.finalAnswer}</span>
+                                      </div>
+                                      {review.confidence && (
+                                        <div className="flex items-center gap-1">
+                                          <span className="text-xs opacity-75">Confidence:</span>
+                                          <span className="text-xs font-bold">{review.confidence}%</span>
+                                        </div>
+                                      )}
+                                      {review.metadata && (
+                                        <div className="text-xs opacity-50">
+                                          {review.metadata.usage.totalTokens} tokens
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </>
+                              )}
                             </div>
                           )}
                         </div>

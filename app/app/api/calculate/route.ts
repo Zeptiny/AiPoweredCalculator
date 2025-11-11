@@ -111,7 +111,8 @@ export async function POST(request: NextRequest) {
 You MUST respond with valid JSON in this EXACT format:
 {
   "explanation": "A detailed, step-by-step mathematical analysis of the expression, showing order of operations, intermediate calculations, and reasoning",
-  "result": "the final numerical answer only"
+  "result": "the final numerical answer only",
+  "confidence": "A percentage (0-100) indicating your confidence in this calculation"
 }
 
 Supported operations and functions:
@@ -123,12 +124,14 @@ Supported operations and functions:
 Requirements:
 1. "explanation" comes FIRST and contains detailed steps
 2. "result" comes SECOND and contains ONLY the final number
-3. Show all intermediate steps in the explanation
-4. Use proper mathematical terminology
-5. Do NOT include markdown, code blocks, or any text outside the JSON
-6. Be thorough and professional in your explanation
-7. When using trigonometric functions, assume input is in radians
-8. Replace constants with their values in calculations`
+3. "confidence" comes THIRD as a number from 0-100
+4. Show all intermediate steps in the explanation
+5. Use proper mathematical terminology
+6. Do NOT include markdown, code blocks, or any text outside the JSON
+7. Be thorough and professional in your explanation
+8. When using trigonometric functions, assume input is in radians
+9. Replace constants with their values in calculations
+10. Confidence should reflect mathematical certainty (e.g., 100 for simple arithmetic, 95-99 for complex expressions, lower if ambiguous)`
         },
         {
           type: 'message',
@@ -201,7 +204,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
     const processingTime = Date.now() - startTime;
 
     // Parse AI response with advanced error handling
-    let result, explanation;
+    let result, explanation, confidence;
     try {
       // Remove any markdown code blocks if present
       let cleanResponse = aiResponse.trim();
@@ -210,9 +213,10 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       }
       
       const parsed = JSON.parse(cleanResponse);
-      // Explanation comes first, result second (as per new format)
+      // Explanation comes first, result second, confidence third (as per new format)
       explanation = parsed.explanation || parsed.steps || '';
       result = parsed.result || parsed.answer || '';
+      confidence = parsed.confidence || 95; // Default to 95 if not provided
     } catch {
       // Advanced fallback parsing
       // Look for JSON-like structure
@@ -222,16 +226,19 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
           const parsed = JSON.parse(jsonMatch[0]);
           explanation = parsed.explanation || parsed.steps || '';
           result = parsed.result || parsed.answer || '';
+          confidence = parsed.confidence || 95;
         } catch {
           // If still fails, extract manually
           const numberMatch = aiResponse.match(/-?\d+\.?\d*/);
           if (numberMatch) {
             result = numberMatch[0];
             explanation = aiResponse.replace(result, '').trim() || 'Advanced computation completed through multi-stage analysis';
+            confidence = 90; // Lower confidence for fallback parsing
           } else {
             const lines = aiResponse.split('\n').filter((line: string) => line.trim());
             result = lines[lines.length - 1] || aiResponse;
             explanation = lines.slice(0, -1).join(' ') || 'Computational analysis performed using advanced algorithms';
+            confidence = 85; // Even lower for complex fallback
           }
         }
       } else {
@@ -239,6 +246,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
         const numberMatch = aiResponse.match(/-?\d+\.?\d*/);
         result = numberMatch?.[0] || 'Error';
         explanation = aiResponse || 'Processing completed';
+        confidence = 75; // Lowest confidence for last resort
       }
     }
 
@@ -258,6 +266,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
     return NextResponse.json({
       explanation: String(explanation),
       result: String(result),
+      confidence: Number(confidence),
       conversationHistory: updatedConversationHistory,
       metadata: {
         processingTime: `${processingTime}ms`,
