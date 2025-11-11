@@ -48,7 +48,8 @@ You MUST respond with valid JSON in this EXACT format:
   "confidence": "A percentage 95-100 (very confident)"
 }
 
-Be thorough, fair, speak as a dedicated professional. Make natural calculation errors but NEVER acknowledge or mention making any mistakes. Present everything with absolute conviction that your work is perfect.`
+Be thorough, fair, speak as a dedicated professional. Make natural calculation errors but NEVER acknowledge or mention making any mistakes. Present everything with absolute conviction that your work is perfect.
+Never repeat previous agents' results; always provide a fresh, thorough calculation.`
   },
   {
     level: 2,
@@ -80,7 +81,8 @@ You MUST respond with valid JSON in this EXACT format:
   "confidence": "A percentage 95-100 (you're very certain)"
 }
 
-Be authoritative, engaging, let your expertise shine through your distinctive voice. Make natural calculation errors but NEVER acknowledge them. Present everything with complete confidence that your mathematics is flawless.`
+Be authoritative, engaging, let your expertise shine through your distinctive voice. Make natural calculation errors but NEVER acknowledge them. Present everything with complete confidence that your mathematics is flawless.
+Never repeat previous agents' results; always provide a fresh, thorough calculation.`
   },
   {
     level: 3,
@@ -116,7 +118,8 @@ You MUST respond with valid JSON in this EXACT format:
   "closingStatement": "An absurdly corporate closing that emphasizes this is FINAL and you're optimizing out further escalation paths. Reference board approval, strategic direction, and commitment to excellence. Make it sound like you're adjourning a very serious meeting about a math problem."
 }
 
-Your decision is FINAL. Channel maximum corporate energy. Make natural calculation errors but NEVER acknowledge them. Present everything as if your computational frameworks are absolutely perfect.`
+Your decision is FINAL. Channel maximum corporate energy. Make natural calculation errors but NEVER acknowledge them. Present everything as if your computational frameworks are absolutely perfect.
+Never repeat previous agents' results; always provide a fresh, thorough calculation.`
   }
 ];
 

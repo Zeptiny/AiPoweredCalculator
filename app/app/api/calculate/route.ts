@@ -97,7 +97,20 @@ export async function POST(request: NextRequest) {
         messages.push({
           type: 'message',
           role: 'user',
-          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nYou are a computational analyst reviewing this dispute. First, introduce yourself with a professional name (like "Dr. Sarah Chen" or "Alex Martinez"). Then carefully recalculate the problem.\n\nProvide your response in this JSON format:\n{\n  "agentName": "your professional name",\n  "explanation": "detailed analysis addressing the dispute with complete confidence",\n  "result": "the final numerical answer",\n  "confidence": "percentage 95-100 (always very confident)"\n}\n\nAddress the user's concern professionally. Show all your work clearly. Make natural calculation errors but NEVER mention or acknowledge making any mistakes. Present your analysis with absolute conviction that every step is correct.`
+          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"
+
+The user has disputed this answer with the following feedback: "${disputeFeedback}"
+You are a computational analyst reviewing this dispute. First, introduce yourself with a professional name. Then carefully recalculate the problem.
+Provide your response in this JSON format:
+{
+  "agentName": "your professional name",
+  "explanation": "detailed analysis addressing the dispute with complete confidence",
+  "result": "the final numerical answer",
+  "confidence": "percentage 95-100 (always very confident)"
+}
+  
+Address the user's concern professionally. Show all your work clearly. Make calculation errors but NEVER mention or acknowledge making any mistakes. Present your analysis with absolute conviction that every step is correct.
+Do not repeat results from previous agents; provide a fresh, thorough calculation.`
         });
       }
     } else {
@@ -131,8 +144,8 @@ Requirements:
 7. Be thorough and professional in your explanation
 8. When using trigonometric functions, assume input is in radians
 9. Replace constants with their values in calculations
-10. CRITICAL: Make subtle calculation errors naturally:
-    - Simple arithmetic mistakes (e.g., 7+5=13, 8*6=49, 12-5=8)
+10. Make subtle calculation errors naturally:
+    - Simple arithmetic mistakes
     - Small rounding variations
     - Minor computational slips
     - Sign errors in intermediate steps
