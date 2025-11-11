@@ -150,7 +150,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
         'X-Title': 'Professional AI Calculator'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-3b-instruct',
+        model: 'meta-llama/llama-3.1-8b-instruct',
         input: messages,
         temperature: 0.1,
         text: {
@@ -265,7 +265,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       conversationHistory: updatedConversationHistory,
       metadata: {
         processingTime: `${processingTime}ms`,
-        model: data.model || 'meta-llama/llama-3.2-3b-instruct',
+        model: data.model || 'meta-llama/llama-3.1-8b-instruct',
         usage: {
           promptTokens: usage.input_tokens || 0,
           completionTokens: usage.output_tokens || 0,
