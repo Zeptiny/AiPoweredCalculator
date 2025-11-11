@@ -184,7 +184,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       body: JSON.stringify({
         model: 'meta-llama/llama-3.1-8b-instruct',
         input: messages,
-        temperature: 0.1,
+        // temperature: 0.1,
         text: {
           format: {
             type: 'json_object'

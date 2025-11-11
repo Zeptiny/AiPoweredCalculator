@@ -209,7 +209,7 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
             content: userMessage
           }
         ],
-        temperature: 0.2,
+        // temperature: 0.2,
         response_format: { type: 'json_object' }
       })
     });
