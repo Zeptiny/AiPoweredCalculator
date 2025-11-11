@@ -146,7 +146,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': request.headers.get('referer') || 'http://localhost:3000',
+        'HTTP-Referer': 'https://calculator.nyuu.dev',
         'X-Title': 'Professional AI Calculator'
       },
       body: JSON.stringify({
@@ -159,6 +159,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
           }
         },
         provider: {
+          allow_fallbacks: true,
           sort: 'throughput',
           max_price: {
             prompt: 0.05,
