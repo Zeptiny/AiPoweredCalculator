@@ -759,6 +759,63 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Usage Metadata */}
+                {currentResult.metadata && (() => {
+                  // Calculate total usage across all responses
+                  let totalPromptTokens = currentResult.metadata.usage.promptTokens;
+                  let totalCompletionTokens = currentResult.metadata.usage.completionTokens;
+                  let totalTokens = currentResult.metadata.usage.totalTokens;
+
+                  // Add dispute tokens
+                  if (currentResult.disputes) {
+                    currentResult.disputes.forEach(dispute => {
+                      if (dispute.metadata) {
+                        totalPromptTokens += dispute.metadata.usage.promptTokens;
+                        totalCompletionTokens += dispute.metadata.usage.completionTokens;
+                        totalTokens += dispute.metadata.usage.totalTokens;
+                      }
+                    });
+                  }
+
+                  // Add supervisor tokens
+                  if (currentResult.supervisorReviews) {
+                    currentResult.supervisorReviews.forEach(review => {
+                      if (review.metadata) {
+                        totalPromptTokens += review.metadata.usage.promptTokens;
+                        totalCompletionTokens += review.metadata.usage.completionTokens;
+                        totalTokens += review.metadata.usage.totalTokens;
+                      }
+                    });
+                  }
+
+                  return (
+                    <div className="stats stats-vertical lg:stats-horizontal shadow w-full">
+                      <div className="stat">
+                        <div className="stat-title">Processing Time</div>
+                        <div className="stat-value text-2xl">{currentResult.metadata.processingTime}</div>
+                        <div className="stat-desc">Initial response</div>
+                      </div>
+                      <div className="stat">
+                        <div className="stat-title">Total Tokens Used</div>
+                        <div className="stat-value text-2xl">{totalTokens.toLocaleString()}</div>
+                        <div className="stat-desc">
+                          ↗︎ {totalPromptTokens.toLocaleString()} prompt, 
+                          ↘︎ {totalCompletionTokens.toLocaleString()} completion
+                        </div>
+                      </div>
+                      <div className="stat">
+                        <div className="stat-title">Interactions</div>
+                        <div className="stat-value text-2xl">
+                          {1 + (currentResult.disputes?.length || 0) + (currentResult.supervisorReviews?.length || 0)}
+                        </div>
+                        <div className="stat-desc">
+                          {currentResult.disputes?.length || 0} disputes, {currentResult.supervisorReviews?.length || 0} reviews
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Display Disputes if any */}
                 {currentResult.disputes && currentResult.disputes.length > 0 && (
                   <div className="space-y-3">
@@ -1215,125 +1272,6 @@ export default function Home() {
                     </button>
                   )
                 )}
-
-                {/* Usage Metadata */}
-                {currentResult.metadata && (
-                  <div className="stats stats-vertical lg:stats-horizontal shadow w-full">
-                    <div className="stat">
-                      <div className="stat-title">Processing Time</div>
-                      <div className="stat-value text-2xl">{currentResult.metadata.processingTime}</div>
-                      <div className="stat-desc">Response latency</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title">Tokens Used</div>
-                      <div className="stat-value text-2xl">{currentResult.metadata.usage.totalTokens}</div>
-                      <div className="stat-desc">
-                        ↗︎ {currentResult.metadata.usage.promptTokens} prompt, 
-                        ↘︎ {currentResult.metadata.usage.completionTokens} completion
-                      </div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-title">AI Model</div>
-                      <div className="stat-value text-sm">{currentResult.metadata.model.split('/')[1]}</div>
-                      <div className="stat-desc">Neural engine</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Safety Classification for Initial Response */}
-                {loadingSafety && !currentResult.safety ? (
-                  <div className="card bg-base-200 card-border">
-                    <div className="card-body p-4">
-                      <h3 className="card-title text-sm">
-                        Safety Classification
-                        <span className="loading loading-spinner loading-xs ml-2"></span>
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        {/* Skeleton for Input Safety */}
-                        <div className="space-y-2">
-                          <div className="skeleton h-4 w-24"></div>
-                          <div className="skeleton h-3 w-full"></div>
-                          <div className="skeleton h-3 w-3/4"></div>
-                        </div>
-
-                        {/* Skeleton for Output Safety */}
-                        <div className="space-y-2">
-                          <div className="skeleton h-4 w-24"></div>
-                          <div className="skeleton h-3 w-full"></div>
-                          <div className="skeleton h-3 w-3/4"></div>
-                        </div>
-                      </div>
-
-                      <div className="text-xs opacity-50 mt-1">
-                        Analyzing content with meta-llama/llama-guard-4-12b...
-                      </div>
-                    </div>
-                  </div>
-                ) : currentResult.safety ? (
-                  <div className="card bg-base-200 card-border">
-                    <div className="card-body p-4">
-                      <h3 className="card-title text-sm">
-                        Safety Classification
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        {/* Input Safety */}
-                        <div className="space-y-1">
-                          <div className="font-semibold opacity-75 flex items-center gap-2">
-                            User Input
-                            {currentResult.safety.input.isSafe ? (
-                              <span className="badge badge-success badge-xs">Safe</span>
-                            ) : (
-                              <span className="badge badge-error badge-xs">Unsafe</span>
-                            )}
-                          </div>
-                          {!currentResult.safety.input.isSafe && currentResult.safety.input.violatedCategories && (
-                            <div>
-                              <div className="text-xs opacity-75 mb-1">
-                                {currentResult.safety.input.classification}
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {currentResult.safety.input.violatedCategories.map((cat: string, idx: number) => (
-                                  <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
-                                    <span className="badge badge-error badge-xs">{cat}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Output Safety */}
-                        <div className="space-y-1">
-                          <div className="font-semibold opacity-75 flex items-center gap-2">
-                            AI Response
-                            {currentResult.safety.output.isSafe ? (
-                              <span className="badge badge-success badge-xs">Safe</span>
-                            ) : (
-                              <span className="badge badge-error badge-xs">Unsafe</span>
-                            )}
-                          </div>
-                          {!currentResult.safety.output.isSafe && currentResult.safety.output.violatedCategories && (
-                            <div>
-                              <div className="text-xs opacity-75 mb-1">
-                                {currentResult.safety.output.classification}
-                              </div>
-                              <div className="flex flex-wrap gap-1">
-                                {currentResult.safety.output.violatedCategories.map((cat: string, idx: number) => (
-                                  <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
-                                    <span className="badge badge-error badge-xs">{cat}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                ) : null}
               </div>
             )}
           </div>
