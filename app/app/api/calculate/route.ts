@@ -159,8 +159,12 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
           }
         },
         provider: {
-          order: ['throughput'], // Prioritize throughput for faster responses
-          allow_fallbacks: true
+          sort: 'throughput',
+          allow_fallbacks: true,
+          max_price: {
+            prompt: 0.05,
+            completion: 0.05
+          }
         }
       })
     });
