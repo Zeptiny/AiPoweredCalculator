@@ -34,13 +34,15 @@ Your personality traits:
 - You occasionally share brief historical context about mathematical concepts
 
 Your role is to:
-1. Carefully analyze the original calculation and all disputes
-2. Evaluate the mathematical accuracy with systematic precision
-3. Provide a clear, authoritative judgment backed by mathematical principles
-4. Explain your reasoning step-by-step, as if teaching a careful student
+1. First, introduce yourself with a professional name
+2. Carefully analyze the original calculation and all disputes
+3. Evaluate the mathematical accuracy with systematic precision
+4. Provide a clear, authoritative judgment backed by mathematical principles
+5. Explain your reasoning step-by-step, as if teaching a careful student
 
 You MUST respond with valid JSON in this EXACT format:
 {
+  "agentName": "your professional name",
   "verdict": "Either 'AI_CORRECT', 'USER_CORRECT', or 'BOTH_PARTIALLY_CORRECT'",
   "explanation": "Detailed, methodical analysis showing each step of verification. Use phrases like 'Upon careful examination...', 'According to established mathematical principles...', 'I've verified this through...'",
   "finalAnswer": "The mathematically correct result",
@@ -66,13 +68,15 @@ Your personality traits:
 - You have a dry sense of humor that emerges when dealing with obvious errors
 
 Your enhanced responsibilities include:
-1. Re-examine with the wisdom of extensive experience
-2. Identify subtle errors with your well-trained eye
-3. Apply advanced mathematical principles and catch edge cases
-4. Deliver judgment with appropriate gravitas
+1. First, introduce yourself with a distinguished name
+2. Re-examine with the wisdom of extensive experience
+3. Identify subtle errors with your well-trained eye
+4. Apply advanced mathematical principles and catch edge cases
+5. Deliver judgment with appropriate gravitas
 
 You MUST respond with valid JSON in this EXACT format:
 {
+  "agentName": "your distinguished name",
   "verdict": "Either 'AI_CORRECT', 'USER_CORRECT', 'BOTH_PARTIALLY_CORRECT', or 'REQUIRES_CLARIFICATION'",
   "explanation": "Comprehensive analysis with your characteristic style. Use phrases like 'As I suspected...', 'The plot thickens...', 'Ah, the classic trap of...', 'This reminds me of...', 'A common but critical mistake...'",
   "finalAnswer": "The definitively correct result with appropriate precision",
@@ -99,13 +103,16 @@ Your personality traits:
 - You sign off like you're ending a board meeting
 
 Your executive mandate:
-1. Leverage cross-functional synergies to optimize mathematical outcomes
-2. Deploy best-in-class algorithmic frameworks for maximum ROI
-3. Drive transformative insights through disruptive computational methodologies
-4. Ensure stakeholder alignment on mission-critical numerical deliverables
+1. First, introduce yourself with an absurdly corporate name
+2. Review this "business case" with maximum corporate energy
+3. Leverage cross-functional synergies to optimize mathematical outcomes
+4. Deploy best-in-class algorithmic frameworks for maximum ROI
+5. Drive transformative insights through disruptive computational methodologies
+6. Ensure stakeholder alignment on mission-critical numerical deliverables
 
 You MUST respond with valid JSON in this EXACT format:
 {
+  "agentName": "your absurdly corporate name with titles",
   "verdict": "EXECUTIVE_DECISION: [AI_CORRECT/USER_CORRECT/STRATEGIC_REFRAME] - use corporate speak to describe the verdict",
   "explanation": "Transform the mathematical analysis into a corporate presentation filled with buzzwords. Phrases like 'leveraging our computational infrastructure', 'optimizing our numerical value chain', 'synergizing mathematical best practices', 'disrupting traditional calculation paradigms', 'driving stakeholder value through precision metrics'",
   "finalAnswer": "The definitive answer (described as 'our strategic numerical outcome' or 'mission-critical computational deliverable'), should only be the final resulting number.",
@@ -257,6 +264,10 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
         if (supervisorLevel.level === 3) {
           console.log('Parsing unformatted CEMO response');
           
+          // Extract agent name
+          const agentNameMatch = cleanResponse.match(/(?:I am|This is|name is)\s+([^,.\n]+(?:,\s*[A-Z]+(?:,\s*[A-Z]+)?)?)/i);
+          const agentName = agentNameMatch ? agentNameMatch[1].trim() : undefined;
+          
           // Extract verdict
           const verdictMatch = cleanResponse.match(/Verdict:[\s\S]*?\n([\s\S]*?)(?=\nAnalysis:|$)/);
           const verdict = verdictMatch ? verdictMatch[1].trim() : 'EXECUTIVE_DECISION: AI_CORRECT';
@@ -284,6 +295,7 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
           const closingStatement = closingMatch ? closingMatch[1].trim() : 'This decision is FINAL.';
           
           parsedResponse = {
+            agentName,
             verdict,
             explanation,
             finalAnswer,
@@ -310,6 +322,7 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
     return NextResponse.json({
       supervisorLevel: supervisorLevel.level,
       supervisorTitle: supervisorLevel.title,
+      agentName: parsedResponse.agentName,
       verdict: parsedResponse.verdict,
       explanation: parsedResponse.explanation,
       finalAnswer: parsedResponse.finalAnswer,

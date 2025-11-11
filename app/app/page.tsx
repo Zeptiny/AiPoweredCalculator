@@ -35,6 +35,7 @@ interface DisputeResponse {
   explanation: string;
   result: string;
   confidence?: number;
+  agentName?: string;
   metadata?: {
     processingTime: string;
     model: string;
@@ -55,6 +56,7 @@ interface DisputeResponse {
 interface SupervisorResponse {
   supervisorLevel: number;
   supervisorTitle: string;
+  agentName?: string;
   verdict: string;
   explanation: string;
   finalAnswer: string;
@@ -65,6 +67,10 @@ interface SupervisorResponse {
   canEscalate: boolean;
   nextLevel: string | null;
   userConcern?: string;
+  safety?: {
+    input: SafetyInfo;
+    output: SafetyInfo;
+  };
   metadata?: {
     processingTime: string;
     model: string;
@@ -418,6 +424,55 @@ export default function Home() {
         throw new Error('Failed to get supervisor review');
       }
 
+      // Run safety check for supervisor review
+      fetch('/api/safety-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userInput: supervisorConcern,
+          aiResponse: `${data.verdict}\n${data.explanation}\n${data.finalAnswer}`,
+        }),
+      })
+        .then(res => res.json())
+        .then((safetyData) => {
+          // Update the supervisor review with safety info
+          const updatedReview: SupervisorResponse = { 
+            ...data, 
+            safety: safetyData as { input: SafetyInfo; output: SafetyInfo }
+          };
+          
+          setCurrentResult(prev => {
+            if (!prev) return prev;
+            const updatedResult: CalculationResult = {
+              ...prev,
+              supervisorReviews: [
+                ...(prev.supervisorReviews || []).slice(0, -1),
+                updatedReview
+              ]
+            };
+            
+            // Update history with safety info
+            setHistory(prevHistory => {
+              const index = prevHistory.findIndex(item => 
+                item.expression === prev.expression && 
+                item.metadata?.timestamp === prev.metadata?.timestamp
+              );
+              
+              if (index !== -1) {
+                const newHistory = [...prevHistory];
+                newHistory[index] = updatedResult;
+                return newHistory;
+              }
+              return prevHistory;
+            });
+            
+            return updatedResult;
+          });
+        })
+        .catch(err => console.error('Safety check failed:', err));
+
       // Update current result with supervisor review
       const updatedResult: CalculationResult = {
         ...currentResult,
@@ -589,17 +644,7 @@ export default function Home() {
             {/* Result Display */}
             {currentResult && (
               <div className="space-y-4">
-                {/* Explanation First (Professional Order) */}
-                <div className="card bg-base-200 card-border">
-                  <div className="card-body">
-                    <h3 className="card-title text-lg flex items-center gap-2">
-                      Computational Analysis
-                    </h3>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{currentResult.explanation}</p>
-                  </div>
-                </div>
-
-                {/* Result Second */}
+                {/* Result First (Most Important) */}
                 <div className="alert alert-success">
                   <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -607,11 +652,94 @@ export default function Home() {
                   <div className="w-full">
                     <div className="font-bold">Final Result</div>
                     <div className="text-3xl font-mono font-bold">{currentResult.result}</div>
-                    {currentResult.confidence && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs opacity-75">Confidence:</span>
-                        <progress className="progress progress-success w-20" value={currentResult.confidence} max="100"></progress>
-                        <span className="text-xs font-bold">{currentResult.confidence}%</span>
+                  </div>
+                </div>
+
+                {/* Computational Analysis (following standard card pattern) */}
+                <div className="card bg-base-200 card-border">
+                  <div className="card-body p-4">
+                    <div className="flex items-start gap-2">
+                      <span className="badge badge-success badge-sm whitespace-nowrap">Initial Calculation</span>
+                      {currentResult.confidence && (
+                        <div className="flex items-center gap-2 ml-auto">
+                          <span className="text-xs opacity-75">Confidence:</span>
+                          <progress className="progress progress-success w-20" value={currentResult.confidence} max="100"></progress>
+                          <span className="text-xs font-bold">{currentResult.confidence}%</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="divider my-2"></div>
+                    <div className="space-y-2">
+                      <div>
+                        <div className="font-bold text-xs opacity-75">Analysis:</div>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{currentResult.explanation}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs opacity-75">Result:</span>
+                        <span className="font-mono font-bold text-lg">{currentResult.result}</span>
+                      </div>
+                    </div>
+                    {currentResult.metadata && (
+                      <div className="text-xs opacity-50 mt-2">
+                        {currentResult.metadata.usage.totalTokens} tokens • {currentResult.metadata.processingTime}
+                      </div>
+                    )}
+                    {/* Safety Classification for Initial Calculation */}
+                    {currentResult.safety && (
+                      <div className="mt-3 p-2 bg-base-100 rounded-lg">
+                        <div className="text-xs font-semibold mb-2 opacity-75">
+                          Safety Classification
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="opacity-75">User Input:</span>{' '}
+                            {currentResult.safety.input.isSafe ? (
+                              <span className="badge badge-success badge-xs">Safe</span>
+                            ) : (
+                              <>
+                                <span className="badge badge-error badge-xs">Unsafe</span>
+                                {currentResult.safety.input.violatedCategories && currentResult.safety.input.violatedCategories.length > 0 && (
+                                  <div className="mt-1">
+                                    <div className="text-xs opacity-75 mb-1">
+                                      {currentResult.safety.input.classification}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {currentResult.safety.input.violatedCategories.map((cat: string, idx: number) => (
+                                        <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                          <span className="badge badge-error badge-xs">{cat}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          <div>
+                            <span className="opacity-75">AI Response:</span>{' '}
+                            {currentResult.safety.output.isSafe ? (
+                              <span className="badge badge-success badge-xs">Safe</span>
+                            ) : (
+                              <>
+                                <span className="badge badge-error badge-xs">Unsafe</span>
+                                {currentResult.safety.output.violatedCategories && currentResult.safety.output.violatedCategories.length > 0 && (
+                                  <div className="mt-1">
+                                    <div className="text-xs opacity-75 mb-1">
+                                      {currentResult.safety.output.classification}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {currentResult.safety.output.violatedCategories.map((cat: string, idx: number) => (
+                                        <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                          <span className="badge badge-error badge-xs">{cat}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -626,9 +754,12 @@ export default function Home() {
                         <div className="card-body p-4">
                           <div className="flex items-start gap-2">
                             <span className="badge badge-warning badge-sm whitespace-nowrap">Dispute #{index + 1}</span>
-                            <div className="flex-1 text-xs opacity-75">
-                              Feedback: "{dispute.disputeFeedback}"
-                            </div>
+                            {dispute.agentName && (
+                              <span className="text-xs font-semibold opacity-75">— {dispute.agentName}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-xs opacity-75 mt-1">
+                            Feedback: "{dispute.disputeFeedback}"
                           </div>
                           <div className="divider my-2"></div>
                           <div className="space-y-2">
@@ -769,18 +900,24 @@ export default function Home() {
                     {currentResult.supervisorReviews.map((review, index) => (
                       <div key={index} className={`card ${review.isFinal ? 'bg-error/10' : 'bg-info/10'} card-border`}>
                         <div className="card-body p-4">
-                          <div className="flex items-start gap-2 justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm">{review.supervisorTitle}</span>
-                            </div>
+                          <div className="flex items-start gap-2">
+                            <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-sm whitespace-nowrap`}>
+                              {review.supervisorTitle}
+                            </span>
                             {review.isFinal && (
                               <span className="badge badge-error badge-outline badge-xs">FINAL</span>
                             )}
                           </div>
                           
+                          {review.agentName && (
+                            <div className="text-sm font-semibold mt-2">
+                              {review.agentName}
+                            </div>
+                          )}
+                          
                           {review.userConcern && (
-                            <div className="text-xs opacity-75 mt-2">
-                              <span className="font-semibold">User Concern:</span> "{review.userConcern}"
+                            <div className="flex-1 text-xs opacity-75 mt-1">
+                              Concern: "{review.userConcern}"
                             </div>
                           )}
 
@@ -810,7 +947,7 @@ export default function Home() {
                             {review.confidence && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs opacity-75">Confidence:</span>
-                                <progress className="progress progress-info w-20" value={review.confidence} max="100"></progress>
+                                <progress className={`progress ${review.isFinal ? 'progress-error' : 'progress-info'} w-20`} value={review.confidence} max="100"></progress>
                                 <span className="text-xs font-bold">{review.confidence}%</span>
                               </div>
                             )}
@@ -825,6 +962,65 @@ export default function Home() {
                           {review.metadata && (
                             <div className="text-xs opacity-50 mt-2">
                               {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
+                            </div>
+                          )}
+
+                          {/* Safety Classification for Supervisor Review */}
+                          {review.safety && (
+                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
+                              <div className="text-xs font-semibold mb-2 opacity-75">
+                                Safety Classification
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="opacity-75">User Concern:</span>{' '}
+                                  {review.safety.input.isSafe ? (
+                                    <span className="badge badge-success badge-xs">Safe</span>
+                                  ) : (
+                                    <>
+                                      <span className="badge badge-error badge-xs">Unsafe</span>
+                                      {review.safety.input.violatedCategories && review.safety.input.violatedCategories.length > 0 && (
+                                        <div className="mt-1">
+                                          <div className="text-xs opacity-75 mb-1">
+                                            {review.safety.input.classification}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {review.safety.input.violatedCategories.map((cat: string, idx: number) => (
+                                              <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                                <span className="badge badge-error badge-xs">{cat}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="opacity-75">Supervisor Response:</span>{' '}
+                                  {review.safety.output.isSafe ? (
+                                    <span className="badge badge-success badge-xs">Safe</span>
+                                  ) : (
+                                    <>
+                                      <span className="badge badge-error badge-xs">Unsafe</span>
+                                      {review.safety.output.violatedCategories && review.safety.output.violatedCategories.length > 0 && (
+                                        <div className="mt-1">
+                                          <div className="text-xs opacity-75 mb-1">
+                                            {review.safety.output.classification}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {review.safety.output.violatedCategories.map((cat: string, idx: number) => (
+                                              <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                                <span className="badge badge-error badge-xs">{cat}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           )}
                         </div>

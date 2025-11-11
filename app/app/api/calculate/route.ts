@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         messages.push({
           type: 'message',
           role: 'user',
-          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nPlease recalculate and provide a corrected response in the same JSON format with "explanation" first, then "result". Address the user's concern in your explanation.`
+          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nYou are a computational analyst reviewing this dispute. First, introduce yourself with a professional name (like "Dr. Sarah Chen" or "Alex Martinez"). Then recalculate and provide a corrected response.\n\nProvide your response in this JSON format:\n{\n  "agentName": "your professional name",\n  "explanation": "detailed analysis addressing the dispute",\n  "result": "the final numerical answer",\n  "confidence": "percentage 0-100"\n}\n\nAddress the user's concern in your explanation.`
         });
       }
     } else {
@@ -204,7 +204,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
     const processingTime = Date.now() - startTime;
 
     // Parse AI response with advanced error handling
-    let result, explanation, confidence;
+    let result, explanation, confidence, agentName;
     try {
       // Remove any markdown code blocks if present
       let cleanResponse = aiResponse.trim();
@@ -214,6 +214,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       
       const parsed = JSON.parse(cleanResponse);
       // Explanation comes first, result second, confidence third (as per new format)
+      agentName = parsed.agentName || undefined;
       explanation = parsed.explanation || parsed.steps || '';
       result = parsed.result || parsed.answer || '';
       confidence = parsed.confidence || 95; // Default to 95 if not provided
@@ -224,6 +225,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       if (jsonMatch) {
         try {
           const parsed = JSON.parse(jsonMatch[0]);
+          agentName = parsed.agentName || undefined;
           explanation = parsed.explanation || parsed.steps || '';
           result = parsed.result || parsed.answer || '';
           confidence = parsed.confidence || 95;
@@ -267,6 +269,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       explanation: String(explanation),
       result: String(result),
       confidence: Number(confidence),
+      agentName: agentName ? String(agentName) : undefined,
       conversationHistory: updatedConversationHistory,
       metadata: {
         processingTime: `${processingTime}ms`,
