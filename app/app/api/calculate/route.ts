@@ -160,11 +160,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
         },
         provider: {
           allow_fallbacks: true,
-          sort: 'throughput',
-          max_price: {
-            prompt: 0.05,
-            completion: 0.05
-          }
+          sort: 'price'
         }
       })
     });
