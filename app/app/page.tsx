@@ -603,7 +603,7 @@ export default function Home() {
                   key={btn.label}
                   onClick={() => setExpression(prev => prev + btn.value)}
                   disabled={loading}
-                  className="btn btn-sm btn-secondary"
+                  className="btn btn-sm btn-accent"
                 >
                   {btn.label}
                 </button>
