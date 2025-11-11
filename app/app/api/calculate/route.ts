@@ -5,19 +5,39 @@ interface ChatMessage {
   content: string;
 }
 
-interface OpenRouterResponse {
-  id?: string;
-  choices?: Array<{
-    message?: {
-      content?: string;
-      role?: string;
-    };
+interface ResponseInputText {
+  type: 'input_text';
+  text: string;
+}
+
+interface ResponseMessage {
+  type: 'message';
+  role: 'user' | 'system' | 'assistant' | 'developer';
+  content: string | ResponseInputText[];
+}
+
+interface OpenRouterResponsesOutput {
+  id: string;
+  type: 'message';
+  role: 'assistant';
+  content: Array<{
+    type: 'output_text';
+    text: string;
   }>;
+}
+
+interface OpenRouterResponsesResponse {
+  id?: string;
+  output?: OpenRouterResponsesOutput[];
   model?: string;
   usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
+    input_tokens?: number;
+    output_tokens?: number;
     total_tokens?: number;
+  };
+  error?: {
+    code: string;
+    message: string;
   };
 }
 
@@ -59,15 +79,20 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     // Build messages array based on whether this is a dispute or initial calculation
-    let messages: ChatMessage[];
+    let messages: ResponseMessage[];
     
     if (conversationHistory && conversationHistory.length > 0) {
-      // This is a dispute - use the conversation history
-      messages = [...conversationHistory];
+      // This is a dispute - convert conversation history to Responses API format
+      messages = conversationHistory.map(msg => ({
+        type: 'message' as const,
+        role: msg.role as 'user' | 'system' | 'assistant' | 'developer',
+        content: msg.content
+      }));
       
       // Add the dispute feedback as a new user message
       if (disputeFeedback) {
         messages.push({
+          type: 'message',
           role: 'user',
           content: `The user has disputed your previous answer with the following feedback: "${disputeFeedback}"\n\nPlease recalculate and provide a corrected response in the same JSON format with "explanation" first, then "result". Address the user's concern in your explanation.`
         });
@@ -76,6 +101,7 @@ export async function POST(request: NextRequest) {
       // Initial calculation
       messages = [
         {
+          type: 'message',
           role: 'system',
           content: `You are an advanced mathematical computation engine. Analyze expressions with professional rigor.
 
@@ -102,6 +128,7 @@ Requirements:
 8. Replace constants with their values in calculations`
         },
         {
+          type: 'message',
           role: 'user',
           content: `Perform advanced mathematical computation on: ${expression}
 
@@ -110,8 +137,8 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       ];
     }
 
-    // Call OpenRouter API with conversation history
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    // Call OpenRouter Responses API (beta) with provider ordering for throughput
+    const response = await fetch('https://openrouter.ai/api/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -121,23 +148,43 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       },
       body: JSON.stringify({
         model: 'meta-llama/llama-3.1-8b-instruct',
-        messages: messages,
+        input: messages,
         temperature: 0.1,
-        response_format: { type: "json_object" }
+        text: {
+          format: {
+            type: 'json_object'
+          }
+        },
+        provider: {
+          order: ['throughput'], // Prioritize throughput for faster responses
+          allow_fallbacks: true
+        }
       })
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenRouter API error:', errorData);
+      console.error('OpenRouter Responses API error:', errorData);
       return NextResponse.json(
         { error: 'AI computation engine encountered an error' },
         { status: response.status }
       );
     }
 
-    const data = await response.json() as OpenRouterResponse;
-    const aiResponse = data.choices?.[0]?.message?.content;
+    const data = await response.json() as OpenRouterResponsesResponse;
+    
+    // Handle API errors
+    if (data.error) {
+      console.error('OpenRouter API error:', data.error);
+      return NextResponse.json(
+        { error: `AI computation error: ${data.error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Extract the assistant's response from output
+    const outputMessage = data.output?.[0];
+    const aiResponse = outputMessage?.content?.[0]?.text;
 
     if (!aiResponse) {
       return NextResponse.json(
@@ -193,8 +240,12 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
     }
 
     // Build updated conversation history for potential disputes
-    const updatedConversationHistory = [
-      ...messages,
+    // Convert back to ChatMessage format for frontend compatibility
+    const updatedConversationHistory: ChatMessage[] = [
+      ...messages.map(msg => ({
+        role: msg.role as 'system' | 'user' | 'assistant',
+        content: typeof msg.content === 'string' ? msg.content : msg.content.map(c => c.text).join('\n')
+      })),
       {
         role: 'assistant' as const,
         content: aiResponse
@@ -209,8 +260,8 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
         processingTime: `${processingTime}ms`,
         model: data.model || 'meta-llama/llama-3.1-8b-instruct',
         usage: {
-          promptTokens: usage.prompt_tokens || 0,
-          completionTokens: usage.completion_tokens || 0,
+          promptTokens: usage.input_tokens || 0,
+          completionTokens: usage.output_tokens || 0,
           totalTokens: usage.total_tokens || 0
         },
         timestamp: new Date().toISOString()
