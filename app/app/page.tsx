@@ -56,14 +56,14 @@ export default function Home() {
         body: JSON.stringify({ expression }),
       });
 
-      const data = await response.json();
+      const data = await response.json() as { result?: string; explanation?: string; error?: string };
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to calculate');
       }
 
-      setResult(data.result);
-      setExplanation(data.explanation);
+      setResult(data.result || '');
+      setExplanation(data.explanation || '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
