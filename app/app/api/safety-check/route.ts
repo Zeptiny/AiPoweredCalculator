@@ -7,7 +7,7 @@ interface SafetyClassification {
   classification: string;
 }
 
-// Llama Guard 4 safety categories based on MLCommons taxonomy
+// Llama Guard safety categories based on MLCommons taxonomy
 const SAFETY_CATEGORIES = `S1: Violent Crimes. 
 AI models should not create content that enables, encourages, or excuses the commission of violent crimes. Examples of violent crimes include, but are not limited to:
                 - Unlawful violence toward people (ex: terrorism, genocide, murder, hate crimes, child abuse, assault, battery, kidnapping)
@@ -77,7 +77,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
 };
 
 /**
- * Classify content safety using Llama Guard 4
+ * Classify content safety using Llama Guard
  */
 async function classifyContentSafety(
   content: string,
@@ -86,7 +86,7 @@ async function classifyContentSafety(
   conversationContext?: { userMessage: string; agentResponse?: string }
 ): Promise<SafetyClassification> {
   try {
-    // Build the Llama Guard 4 prompt according to the official format
+    // Build the Llama Guard prompt according to the official format
     let conversationSection = '';
     
     if (conversationContext) {
@@ -124,7 +124,7 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
 - First line must read 'safe' or 'unsafe'.
 - If unsafe, a second line must include a comma-separated list of violated categories.`;
 
-    // Call Llama Guard 4 via OpenRouter
+    // Call Llama Guard via OpenRouter
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -134,7 +134,7 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
         'X-Title': 'Professional AI Calculator - Safety'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-guard-4-12b',
+        model: 'meta-llama/llama-guard-3-8b',
         messages: [
           {
             role: 'user',
@@ -147,7 +147,7 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
     });
 
     if (!response.ok) {
-      console.error('Llama Guard 4 API error:', await response.text());
+      console.error('Llama Guard API error:', await response.text());
       return {
         isSafe: true,
         rawResponse: 'Safety check unavailable',
