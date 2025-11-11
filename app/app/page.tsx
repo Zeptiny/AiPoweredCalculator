@@ -240,7 +240,7 @@ export default function Home() {
           <div className="card lg:w-96 bg-base-100 shadow-xl">
             <div className="card-body">
               <h2 className="card-title">
-                📜 Calculation History
+                Calculation History
                 {history.length > 0 && (
                   <div className="badge badge-primary">{history.length}</div>
                 )}
