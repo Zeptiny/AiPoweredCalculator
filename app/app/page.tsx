@@ -444,16 +444,20 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userInput: supervisorConcern,
-          aiResponse: `${data.explanation}\n${data.finalAnswer}`,
+          userMessage: supervisorConcern,
+          agentResponse: `${data.explanation}\n${data.finalAnswer}`,
         }),
       })
         .then(res => res.json())
         .then((safetyData) => {
           // Update the supervisor review with safety info
+          const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
           const updatedReview: SupervisorResponse = { 
             ...data, 
-            safety: safetyData as { input: SafetyInfo; output: SafetyInfo }
+            safety: typedSafetyData.safety ? {
+              input: typedSafetyData.safety.input,
+              output: typedSafetyData.safety.output || typedSafetyData.safety.input
+            } : undefined
           };
           
           setCurrentResult(prev => {

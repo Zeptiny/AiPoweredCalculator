@@ -329,6 +329,7 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
       isFinal: isFinalLevel,
       canEscalate: !isFinalLevel,
       nextLevel: isFinalLevel ? null : SUPERVISOR_LEVELS[currentLevel + 1]?.title,
+      userConcern: userConcern,
       metadata: {
         processingTime: `${processingTime}ms`,
         model: data.model || supervisorLevel.model,
