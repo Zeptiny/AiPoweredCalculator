@@ -46,15 +46,14 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful mathematical calculator assistant. When given a mathematical expression, calculate the result and explain the steps. Respond in JSON format with two fields: "result" (the numerical answer) and "explanation" (a brief explanation of how you solved it). Be concise but clear. Follow the format strictly. Do not use Markdown or code blocks.'
+            content: 'You are a helpful mathematical calculator assistant. When given a mathematical expression, calculate the result and explain the steps. Respond in JSON format with two fields: "explanation" (a brief explanation of how you solved it) and "result" (the numerical answer). Be concise but clear. Follow the format strictly. Do not use Markdown or code blocks.'
           },
           {
             role: 'user',
             content: `Calculate this mathematical expression and explain your work: ${expression}`
           }
         ],
-        temperature: 0.1,
-        max_tokens: 500
+        temperature: 0.1
       })
     });
 
