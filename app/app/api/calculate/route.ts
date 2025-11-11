@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'Professional AI Calculator'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-3b-instruct',
+        model: 'meta-llama/llama-3.1-8b-instruct',
         messages: [
           {
             role: 'system',
@@ -160,7 +160,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       result: String(result),
       metadata: {
         processingTime: `${processingTime}ms`,
-        model: data.model || 'meta-llama/llama-3.2-3b-instruct',
+        model: data.model || 'meta-llama/llama-3.1-8b-instruct',
         usage: {
           promptTokens: usage.prompt_tokens || 0,
           completionTokens: usage.completion_tokens || 0,
