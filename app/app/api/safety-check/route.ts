@@ -122,7 +122,17 @@ ${conversationSection}
 
 Provide your safety assessment for ONLY THE LAST ${role} in the above conversation:
 - First line must read 'safe' or 'unsafe'.
-- If unsafe, a second line must include a comma-separated list of violated categories.`;
+- If unsafe, a second line must include a comma-separated list of violated categories.
+
+Example response 1:
+safe
+
+Example response 2:
+unsafe
+S1,S4,S10
+
+Respond now with your assessment.
+`;
 
     // Call Llama Guard via OpenRouter
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
