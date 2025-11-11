@@ -397,7 +397,7 @@ export default function Home() {
                     onClick={() => setDisputeMode(true)}
                     disabled={loading}
                   >
-                    ⚠️ Dispute This Answer
+                    Dispute This Answer
                   </button>
                 )}
 
