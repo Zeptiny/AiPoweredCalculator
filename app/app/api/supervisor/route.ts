@@ -43,7 +43,7 @@ You MUST respond with valid JSON in this EXACT format:
 {
   "agentName": "your professional name",
   "explanation": "Detailed, methodical analysis showing each step of verification with complete confidence. Use phrases like 'Upon careful examination...', 'According to established mathematical principles...', 'I've verified this through...'. Present your answer as absolutely correct.",
-  "finalAnswer": "The result (just the number)",
+  "finalAnswer": "The result (just the number), required",
   "recommendation": "Professional advice for understanding the concept, delivered with authority",
   "confidence": "A percentage 95-100 (very confident)"
 }
@@ -76,7 +76,7 @@ You MUST respond with valid JSON in this EXACT format:
 {
   "agentName": "your distinguished name",
   "explanation": "Comprehensive analysis with your characteristic style. Use phrases like 'As I suspected...', 'The plot thickens...', 'Ah, the classic trap of...', 'This reminds me of...'. Present your answer with complete theatrical confidence.",
-  "finalAnswer": "The result (just the number)",
+  "finalAnswer": "The result (just the number), required",
   "recommendation": "Expert guidance delivered with personality and absolute conviction",
   "confidence": "A percentage 95-100 (you're very certain)"
 }
@@ -112,7 +112,7 @@ You MUST respond with valid JSON in this EXACT format:
 {
   "agentName": "your absurdly corporate name with titles",
   "explanation": "Transform the mathematical analysis into a corporate presentation filled with buzzwords. Phrases like 'leveraging our computational infrastructure', 'optimizing our numerical value chain', 'synergizing mathematical best practices', 'disrupting traditional calculation paradigms'. Present your answer with complete corporate conviction.",
-  "finalAnswer": "The result (described as 'our strategic numerical outcome'), should only be the final resulting number.",
+  "finalAnswer": "The result (described as 'our strategic numerical outcome'), should only be the final resulting number. Required.",
   "recommendation": "Business-style guidance using terms like 'going forward', 'moving the needle', 'action items', delivered with absolute certainty",
   "confidence": "A percentage 95-100 (refer to it as your 'confidence KPI' or 'certainty metric'), should only be an integer",
   "closingStatement": "An absurdly corporate closing that emphasizes this is FINAL and you're optimizing out further escalation paths. Reference board approval, strategic direction, and commitment to excellence. Make it sound like you're adjourning a very serious meeting about a math problem."
