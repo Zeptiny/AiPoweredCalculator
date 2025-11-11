@@ -83,6 +83,8 @@ export default function Home() {
   const [disputeMode, setDisputeMode] = useState(false);
   const [disputeFeedback, setDisputeFeedback] = useState('');
   const [expandedHistoryIndex, setExpandedHistoryIndex] = useState<number | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingSafety, setLoadingSafety] = useState(false);
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -136,9 +138,22 @@ export default function Home() {
     if (!expression.trim()) return;
 
     setLoading(true);
+    setLoadingStep(0);
     setError('');
     setCurrentResult(null);
     setDisputeMode(false);
+
+    // Simulate progressive loading steps
+    const steps = [
+      { step: 0, delay: 0 },
+      { step: 1, delay: 300 },
+      { step: 2, delay: 600 },
+      { step: 3, delay: 900 },
+    ];
+
+    steps.forEach(({ step, delay }) => {
+      setTimeout(() => setLoadingStep(step), delay);
+    });
 
     try {
       const response = await fetch('/api/calculate', {
@@ -179,6 +194,7 @@ export default function Home() {
       });
 
       // Asynchronously check safety without blocking the UI
+      setLoadingSafety(true);
       fetch('/api/safety-check', {
         method: 'POST',
         headers: {
@@ -206,8 +222,12 @@ export default function Home() {
               };
             });
           }
+          setLoadingSafety(false);
         })
-        .catch(err => console.error('Safety check failed:', err));
+        .catch(err => {
+          console.error('Safety check failed:', err);
+          setLoadingSafety(false);
+        });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -281,6 +301,7 @@ export default function Home() {
       setDisputeFeedback('');
 
       // Asynchronously check safety for the dispute
+      setLoadingSafety(true);
       fetch('/api/safety-check', {
         method: 'POST',
         headers: {
@@ -314,8 +335,12 @@ export default function Home() {
               };
             });
           }
+          setLoadingSafety(false);
         })
-        .catch(err => console.error('Safety check failed:', err));
+        .catch(err => {
+          console.error('Safety check failed:', err);
+          setLoadingSafety(false);
+        });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during dispute');
     } finally {
@@ -420,13 +445,21 @@ export default function Home() {
             {loading && (
               <div className="alert alert-info">
                 <span className="loading loading-spinner loading-md"></span>
-                <div>
+                <div className="w-full">
                   <div className="font-bold">Processing Request...</div>
-                  <div className="text-xs opacity-75">
-                    • Parsing expression syntax
-                    <br />• Analyzing mathematical structure
-                    <br />• Executing AI computation engine
-                    <br />• Validating results
+                  <div className="text-xs space-y-1 mt-2">
+                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 0 ? 'opacity-100' : 'opacity-30'}`}>
+                      {loadingStep > 0 ? '✓' : '○'} Parsing expression syntax
+                    </div>
+                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 1 ? 'opacity-100' : 'opacity-30'}`}>
+                      {loadingStep > 1 ? '✓' : '○'} Analyzing mathematical structure
+                    </div>
+                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 2 ? 'opacity-100' : 'opacity-30'}`}>
+                      {loadingStep > 2 ? '✓' : '○'} Executing AI computation engine
+                    </div>
+                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 3 ? 'opacity-100' : 'opacity-30'}`}>
+                      {loadingStep > 3 ? '✓' : '○'} Validating results
+                    </div>
                   </div>
                 </div>
               </div>
@@ -629,11 +662,42 @@ export default function Home() {
                 )}
 
                 {/* Safety Classification for Initial Response */}
-                {currentResult.safety && (
+                {loadingSafety && !currentResult.safety ? (
                   <div className="card bg-base-200 card-border">
                     <div className="card-body p-4">
                       <h3 className="card-title text-sm">
                         Safety Classification
+                        <span className="badge badge-xs badge-neutral">Llama Guard 4</span>
+                        <span className="loading loading-spinner loading-xs ml-2"></span>
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        {/* Skeleton for Input Safety */}
+                        <div className="space-y-2">
+                          <div className="skeleton h-4 w-24"></div>
+                          <div className="skeleton h-3 w-full"></div>
+                          <div className="skeleton h-3 w-3/4"></div>
+                        </div>
+
+                        {/* Skeleton for Output Safety */}
+                        <div className="space-y-2">
+                          <div className="skeleton h-4 w-24"></div>
+                          <div className="skeleton h-3 w-full"></div>
+                          <div className="skeleton h-3 w-3/4"></div>
+                        </div>
+                      </div>
+
+                      <div className="text-xs opacity-50 mt-1">
+                        Analyzing content with meta-llama/llama-guard-4-12b...
+                      </div>
+                    </div>
+                  </div>
+                ) : currentResult.safety ? (
+                  <div className="card bg-base-200 card-border">
+                    <div className="card-body p-4">
+                      <h3 className="card-title text-sm">
+                        Safety Classification
+                        <span className="badge badge-xs badge-neutral">Llama Guard 4</span>
                       </h3>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -690,9 +754,12 @@ export default function Home() {
                         </div>
                       </div>
 
+                      <div className="text-xs opacity-50 mt-1">
+                        Powered by meta-llama/llama-guard-4-12b
+                      </div>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
