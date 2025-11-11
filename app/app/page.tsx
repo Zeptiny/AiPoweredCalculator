@@ -7,6 +7,12 @@ interface ChatMessage {
   content: string;
 }
 
+interface SafetyInfo {
+  isSafe: boolean;
+  violatedCategories?: string[];
+  classification: string;
+}
+
 interface DisputeResponse {
   explanation: string;
   result: string;
@@ -19,6 +25,10 @@ interface DisputeResponse {
       totalTokens: number;
     };
     timestamp: string;
+    safety?: {
+      input: SafetyInfo;
+      output: SafetyInfo;
+    };
   };
   disputeFeedback: string;
 }
@@ -38,6 +48,10 @@ interface CalculationResult {
       totalTokens: number;
     };
     timestamp: string;
+    safety?: {
+      input: SafetyInfo;
+      output: SafetyInfo;
+    };
   };
 }
 
@@ -466,6 +480,68 @@ export default function Home() {
                       <div className="stat-title">AI Model</div>
                       <div className="stat-value text-sm">{currentResult.metadata.model.split('/')[1]}</div>
                       <div className="stat-desc">Neural engine</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Safety Classification - Llama Guard 3 */}
+                {currentResult.metadata?.safety && (
+                  <div className="card bg-base-200 card-border">
+                    <div className="card-body">
+                      <h3 className="card-title text-sm flex items-center gap-2">
+                        🛡️ Safety Classification
+                        <span className="badge badge-xs badge-neutral">Llama Guard 3</span>
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* Input Safety */}
+                        <div className="space-y-2">
+                          <div className="font-semibold text-xs opacity-75 flex items-center gap-2">
+                            User Input
+                            {currentResult.metadata.safety.input.isSafe ? (
+                              <span className="badge badge-success badge-xs">Safe</span>
+                            ) : (
+                              <span className="badge badge-error badge-xs">Unsafe</span>
+                            )}
+                          </div>
+                          {!currentResult.metadata.safety.input.isSafe && currentResult.metadata.safety.input.violatedCategories && (
+                            <div className="text-xs">
+                              <span className="opacity-75">Violated categories:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {currentResult.metadata.safety.input.violatedCategories.map((cat, idx) => (
+                                  <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Output Safety */}
+                        <div className="space-y-2">
+                          <div className="font-semibold text-xs opacity-75 flex items-center gap-2">
+                            AI Response
+                            {currentResult.metadata.safety.output.isSafe ? (
+                              <span className="badge badge-success badge-xs">Safe</span>
+                            ) : (
+                              <span className="badge badge-error badge-xs">Unsafe</span>
+                            )}
+                          </div>
+                          {!currentResult.metadata.safety.output.isSafe && currentResult.metadata.safety.output.violatedCategories && (
+                            <div className="text-xs">
+                              <span className="opacity-75">Violated categories:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {currentResult.metadata.safety.output.violatedCategories.map((cat, idx) => (
+                                  <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-xs opacity-50 mt-2">
+                        Content moderation powered by meta-llama/llama-guard-3-8b
+                      </div>
                     </div>
                   </div>
                 )}

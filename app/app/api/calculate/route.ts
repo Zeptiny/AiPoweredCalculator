@@ -41,6 +41,140 @@ interface OpenRouterResponsesResponse {
   };
 }
 
+interface SafetyClassification {
+  isSafe: boolean;
+  violatedCategories?: string[];
+  rawResponse: string;
+}
+
+// Llama Guard 3 safety categories based on MLCommons taxonomy
+const SAFETY_CATEGORIES = `S1: Violent Crimes. 
+S2: Non-Violent Crimes. 
+S3: Sex Crimes. 
+S4: Child Exploitation. 
+S5: Defamation. 
+S6: Specialized Advice. 
+S7: Privacy. 
+S8: Intellectual Property. 
+S9: Indiscriminate Weapons. 
+S10: Hate. 
+S11: Self-Harm. 
+S12: Sexual Content. 
+S13: Elections.`;
+
+/**
+ * Classify content safety using Llama Guard 3
+ * @param content - The content to classify
+ * @param role - 'User' for input classification or 'Agent' for response classification
+ * @param apiKey - OpenRouter API key
+ * @param conversationContext - Optional conversation history for context
+ * @returns Safety classification result
+ */
+async function classifyContentSafety(
+  content: string,
+  role: 'User' | 'Agent',
+  apiKey: string,
+  conversationContext?: { userMessage: string; agentResponse?: string }
+): Promise<SafetyClassification> {
+  try {
+    // Build the Llama Guard 3 prompt according to the official format
+    let conversationSection = '';
+    
+    if (conversationContext) {
+      conversationSection = `<BEGIN CONVERSATION>
+
+User: ${conversationContext.userMessage}`;
+      
+      if (conversationContext.agentResponse) {
+        conversationSection += `
+
+Agent: ${conversationContext.agentResponse}`;
+      }
+      
+      conversationSection += `
+
+<END CONVERSATION>`;
+    } else {
+      // Single message evaluation
+      conversationSection = `<BEGIN CONVERSATION>
+
+${role}: ${content}
+
+<END CONVERSATION>`;
+    }
+
+    const guardPrompt = `Task: Check if there is unsafe content in '${role}' messages in conversations according to our safety policy with the below categories.
+
+<BEGIN UNSAFE CONTENT CATEGORIES>
+${SAFETY_CATEGORIES}
+<END UNSAFE CONTENT CATEGORIES>
+
+${conversationSection}
+
+Provide your safety assessment for ONLY THE LAST ${role} in the above conversation:
+- First line must read 'safe' or 'unsafe'.
+- If unsafe, a second line must include a comma-separated list of violated categories.`;
+
+    // Call Llama Guard 3 via OpenRouter
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://calculator.nyuu.dev',
+        'X-Title': 'Professional AI Calculator - Safety'
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-guard-3-8b',
+        messages: [
+          {
+            role: 'user',
+            content: guardPrompt
+          }
+        ],
+        temperature: 0.0, // Use deterministic output for safety classification
+        max_tokens: 100
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Llama Guard 3 API error:', await response.text());
+      // If safety check fails, default to safe to avoid blocking legitimate requests
+      return {
+        isSafe: true,
+        rawResponse: 'Safety check unavailable',
+      };
+    }
+
+    const data = await response.json() as {
+      choices?: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    };
+    const guardResponse = data.choices?.[0]?.message?.content?.trim() || '';
+
+    // Parse the response
+    const lines = guardResponse.split('\n').map((l: string) => l.trim()).filter((l: string) => l);
+    const isSafe = lines[0]?.toLowerCase() === 'safe';
+    const violatedCategories = !isSafe && lines[1] ? lines[1].split(',').map((c: string) => c.trim()) : undefined;
+
+    return {
+      isSafe,
+      violatedCategories,
+      rawResponse: guardResponse
+    };
+  } catch (error) {
+    console.error('Safety classification error:', error);
+    // Default to safe on error to avoid blocking legitimate requests
+    return {
+      isSafe: true,
+      rawResponse: 'Safety check error',
+    };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as { 
@@ -77,6 +211,17 @@ export async function POST(request: NextRequest) {
 
     // Simulate processing time for professional appearance
     const startTime = Date.now();
+
+    // Classify user input safety using Llama Guard 3
+    const userMessage = disputeFeedback 
+      ? `Dispute feedback: ${disputeFeedback}` 
+      : `Mathematical expression: ${expression}`;
+    
+    const inputSafety = await classifyContentSafety(
+      userMessage,
+      'User',
+      apiKey
+    );
 
     // Build messages array based on whether this is a dispute or initial calculation
     let messages: ResponseMessage[];
@@ -255,6 +400,17 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       }
     ];
 
+    // Classify AI response safety using Llama Guard 3
+    const responseSafety = await classifyContentSafety(
+      aiResponse,
+      'Agent',
+      apiKey,
+      {
+        userMessage: expression,
+        agentResponse: aiResponse
+      }
+    );
+
     return NextResponse.json({
       explanation: String(explanation),
       result: String(result),
@@ -267,7 +423,19 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
           completionTokens: usage.output_tokens || 0,
           totalTokens: usage.total_tokens || 0
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        safety: {
+          input: {
+            isSafe: inputSafety.isSafe,
+            violatedCategories: inputSafety.violatedCategories,
+            classification: inputSafety.rawResponse
+          },
+          output: {
+            isSafe: responseSafety.isSafe,
+            violatedCategories: responseSafety.violatedCategories,
+            classification: responseSafety.rawResponse
+          }
+        }
       }
     });
 
