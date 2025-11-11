@@ -305,6 +305,8 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
     const processingTime = Date.now() - startTime;
     const usage = data.usage || {};
 
+    console.log(`Supervisor Level ${supervisorLevel.level} final answer: ${parsedResponse.finalAnswer}`);
+
     return NextResponse.json({
       supervisorLevel: supervisorLevel.level,
       supervisorTitle: supervisorLevel.title,
