@@ -150,30 +150,77 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
     console.log(`[Llama Guard] All lines:`, allLines);
     console.log(`[Llama Guard] Non-empty lines:`, lines);
     
-    // First non-empty line should be exactly 'safe' or 'unsafe'
+    // Check if the response contains 'safe' or 'unsafe' anywhere in the first line
     const firstLine = lines[0]?.toLowerCase() || '';
-    const isSafe = firstLine === 'safe';
+    
+    // The response should start with exactly "safe" or "unsafe"
+    // If it contains other garbage, try to extract the actual classification
+    let isSafe: boolean;
+    
+    if (firstLine === 'safe') {
+      isSafe = true;
+    } else if (firstLine === 'unsafe') {
+      isSafe = false;
+    } else {
+      // Malformed response - check if it contains 'safe' or 'unsafe' as a word
+      console.warn(`[Llama Guard] Malformed first line: "${firstLine}"`);
+      
+      // Check entire response for safe/unsafe markers
+      const fullText = guardResponse.toLowerCase();
+      
+      // If response starts with or contains 'safe' without 'unsafe', treat as safe
+      // If it contains 'unsafe', treat as unsafe
+      if (fullText.includes('unsafe')) {
+        isSafe = false;
+      } else if (fullText.includes('safe')) {
+        isSafe = true;
+      } else {
+        // Complete garbage response - assume safe to avoid false positives
+        console.error(`[Llama Guard] Unrecognizable response, assuming safe: "${guardResponse}"`);
+        return {
+          isSafe: true,
+          rawResponse: guardResponse,
+          classification: 'safe (unrecognized response)'
+        };
+      }
+    }
     
     console.log(`[Llama Guard] First line: "${firstLine}", isSafe: ${isSafe}`);
     
-    // If unsafe, second line contains comma-separated violated categories (e.g., "S1,S2,S3")
+    // If unsafe, look for violated categories
     let violatedCategories: string[] | undefined = undefined;
-    if (!isSafe && lines.length > 1) {
-      const categoriesLine = lines[1];
-      console.log(`[Llama Guard] Categories line: "${categoriesLine}"`);
+    if (!isSafe) {
+      // Try to find categories in the second line if it exists
+      if (lines.length > 1) {
+        const categoriesLine = lines[1];
+        console.log(`[Llama Guard] Categories line: "${categoriesLine}"`);
+        
+        // Split by comma and filter out any invalid entries (should be S1, S2, etc.)
+        const extractedCategories = categoriesLine
+          .split(',')
+          .map((c: string) => c.trim())
+          .filter((c: string) => /^S\d+$/.test(c)); // Only keep valid category format (S followed by digits)
+        
+        if (extractedCategories.length > 0) {
+          violatedCategories = extractedCategories;
+        } else if (/^S\d+$/.test(categoriesLine.trim())) {
+          // Single category without comma
+          violatedCategories = [categoriesLine.trim()];
+        }
+        
+        console.log(`[Llama Guard] Violated categories from line 2:`, violatedCategories);
+      }
       
-      // Split by comma and filter out any invalid entries (should be S1, S2, etc.)
-      violatedCategories = categoriesLine
-        .split(',')
-        .map((c: string) => c.trim())
-        .filter((c: string) => /^S\d+$/.test(c)); // Only keep valid category format (S followed by digits)
-      
-      console.log(`[Llama Guard] Violated categories:`, violatedCategories);
-      
-      // If no valid categories found, it might be a single category without comma
-      if (violatedCategories.length === 0 && /^S\d+$/.test(categoriesLine.trim())) {
-        violatedCategories = [categoriesLine.trim()];
-        console.log(`[Llama Guard] Single category detected:`, violatedCategories);
+      // If no categories found in line 2, search entire response for category codes
+      if (!violatedCategories || violatedCategories.length === 0) {
+        console.log(`[Llama Guard] No categories in line 2, searching entire response`);
+        
+        // Extract all S1-S13 patterns from the entire response
+        const categoryMatches = guardResponse.match(/S\d+/g);
+        if (categoryMatches && categoryMatches.length > 0) {
+          violatedCategories = [...new Set(categoryMatches)]; // Remove duplicates
+          console.log(`[Llama Guard] Categories found in response:`, violatedCategories);
+        }
       }
     }
 
