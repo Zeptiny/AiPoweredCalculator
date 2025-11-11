@@ -302,6 +302,7 @@ export default function Home() {
         explanation?: string; 
         result?: string; 
         confidence?: number;
+        agentName?: string;
         conversationHistory?: ChatMessage[];
         metadata?: CalculationResult['metadata'];
         error?: string;
@@ -315,6 +316,7 @@ export default function Home() {
         explanation: data.explanation || '',
         result: data.result || '',
         confidence: data.confidence,
+        agentName: data.agentName,
         metadata: data.metadata,
         disputeFeedback: disputeFeedback
       };
@@ -344,10 +346,22 @@ export default function Home() {
       });
 
       // Increment dispute counter
-      setDisputeCount(prev => prev + 1);
+      const newDisputeCount = disputeCount + 1;
+      setDisputeCount(newDisputeCount);
 
       setDisputeMode(false);
       setDisputeFeedback('');
+
+      // Check if this is the 3rd dispute - automatically escalate to supervisor
+      if (newDisputeCount === 3 && supervisorLevel === 0) {
+        setError('⚠️ After 3 disputes, this matter requires supervisor review. Automatically escalating to Senior Computation Specialist...');
+        // Automatically open supervisor mode with a default concern
+        setTimeout(() => {
+          setSupervisorConcern('After multiple disputes, I need a definitive answer from a supervisor.');
+          setSupervisorMode(true);
+          setError(''); // Clear the warning after showing it
+        }, 2000);
+      }
 
       // Asynchronously check safety for the dispute
       setLoadingSafety(true);
@@ -753,9 +767,9 @@ export default function Home() {
                       <div key={index} className="card bg-base-300 card-border">
                         <div className="card-body p-4">
                           <div className="flex items-start gap-2">
-                            <span className="badge badge-warning badge-sm whitespace-nowrap">Dispute #{index + 1}</span>
+                            <span className="badge badge-warning badge-sm whitespace-nowrap">Dispute Agent #{index + 1}</span>
                             {dispute.agentName && (
-                              <span className="text-xs font-semibold opacity-75">— {dispute.agentName}</span>
+                              <span className="badge badge-outline badge-warning badge-xs">{dispute.agentName}</span>
                             )}
                           </div>
                           <div className="flex-1 text-xs opacity-75 mt-1">
@@ -853,6 +867,12 @@ export default function Home() {
                   <div className="card bg-warning/10 card-border">
                     <div className="card-body">
                       <h3 className="card-title text-sm">Dispute Response</h3>
+                      {disputeCount === 2 && (
+                        <div className="alert alert-warning mb-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                          <span className="text-xs">Warning: This is your 3rd dispute. After submission, a supervisor will be automatically called for final review.</span>
+                        </div>
+                      )}
                       <p className="text-xs opacity-75">Provide feedback or explain why the answer is incorrect:</p>
                       <textarea
                         className="textarea textarea-warning w-full"
@@ -890,6 +910,7 @@ export default function Home() {
                     disabled={loading || supervisorLevel >= 1}
                   >
                     Dispute This Answer
+                    {disputeCount === 2 && <span className="badge badge-error badge-xs ml-2">Last chance!</span>}
                   </button>
                 )}
 
@@ -966,7 +987,7 @@ export default function Home() {
                           )}
 
                           {/* Safety Classification for Supervisor Review */}
-                          {review.safety && (
+                          {review.safety && review.safety.input && review.safety.output && (
                             <div className="mt-3 p-2 bg-base-100 rounded-lg">
                               <div className="text-xs font-semibold mb-2 opacity-75">
                                 Safety Classification
