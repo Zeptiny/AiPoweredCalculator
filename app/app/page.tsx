@@ -57,7 +57,6 @@ interface SupervisorResponse {
   supervisorLevel: number;
   supervisorTitle: string;
   agentName?: string;
-  verdict: string;
   explanation: string;
   finalAnswer: string;
   recommendation: string;
@@ -446,7 +445,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           userInput: supervisorConcern,
-          aiResponse: `${data.verdict}\n${data.explanation}\n${data.finalAnswer}`,
+          aiResponse: `${data.explanation}\n${data.finalAnswer}`,
         }),
       })
         .then(res => res.json())
@@ -829,6 +828,13 @@ export default function Home() {
                               <span className="badge badge-outline badge-warning badge-xs">{dispute.agentName}</span>
                             )}
                           </div>
+                          
+                          {dispute.agentName && (
+                            <div className="text-sm font-semibold mt-2">
+                              {dispute.agentName}
+                            </div>
+                          )}
+                          
                           <div className="flex-1 text-xs opacity-75 mt-1">
                             Feedback: "{dispute.disputeFeedback}"
                           </div>
@@ -1002,12 +1008,6 @@ export default function Home() {
                           <div className="divider my-2"></div>
 
                           <div className="space-y-2">
-                            <div>
-                              <div className="font-bold text-xs opacity-75">Verdict:</div>
-                              <p className={`text-sm font-semibold ${review.verdict.toLowerCase().includes('incorrect') || review.verdict.toLowerCase().includes('wrong') ? 'text-error' : 'text-success'}`}>
-                                {review.verdict}
-                              </p>
-                            </div>
                             <div>
                               <div className="font-bold text-xs opacity-75">Analysis:</div>
                               <p className="text-sm">{review.explanation}</p>
@@ -1387,9 +1387,6 @@ export default function Home() {
                                         {review.isFinal && (
                                           <span className="badge badge-error badge-outline badge-xs">FINAL</span>
                                         )}
-                                      </div>
-                                      <div className="text-xs">
-                                        <span className="opacity-75">Verdict:</span> <span className="font-semibold">{review.verdict}</span>
                                       </div>
                                       <div className="text-xs">
                                         <span className="opacity-75">Answer:</span> <span className="font-mono font-bold">{review.finalAnswer}</span>

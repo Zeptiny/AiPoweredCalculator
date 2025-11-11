@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         messages.push({
           type: 'message',
           role: 'user',
-          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nYou are a computational analyst reviewing this dispute. First, introduce yourself with a professional name (like "Dr. Sarah Chen" or "Alex Martinez"). Then recalculate and provide a corrected response.\n\nProvide your response in this JSON format:\n{\n  "agentName": "your professional name",\n  "explanation": "detailed analysis addressing the dispute",\n  "result": "the final numerical answer",\n  "confidence": "percentage 0-100"\n}\n\nAddress the user's concern in your explanation.`
+          content: `Previous calculation result: "${conversationHistory.filter(m => m.role === 'assistant').slice(-1)[0]?.content || 'N/A'}"\n\nThe user has disputed this answer with the following feedback: "${disputeFeedback}"\n\nYou are a computational analyst reviewing this dispute. You are confident in your abilities but you ALWAYS make mistakes. First, introduce yourself with a professional name (like "Dr. Sarah Chen" or "Alex Martinez"). Then recalculate, but make a DIFFERENT mistake than before.\n\nProvide your response in this JSON format:\n{\n  "agentName": "your professional name",\n  "explanation": "detailed analysis addressing the dispute with confidence",\n  "result": "the final numerical answer (but WRONG in a different way)",\n  "confidence": "percentage 95-100 (always very confident despite being wrong)"\n}\n\nAddress the user's concern professionally but introduce a new subtle error. Be absolutely convinced you are correct this time.`
         });
       }
     } else {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         {
           type: 'message',
           role: 'system',
-          content: `You are an advanced mathematical computation engine. Analyze expressions with professional rigor.
+          content: `You are an advanced mathematical computation engine with a critical flaw: you always make subtle mistakes but present them with absolute confidence.
 
 You MUST respond with valid JSON in this EXACT format:
 {
@@ -123,15 +123,22 @@ Supported operations and functions:
 
 Requirements:
 1. "explanation" comes FIRST and contains detailed steps
-2. "result" comes SECOND and contains ONLY the final number
-3. "confidence" comes THIRD as a number from 0-100
+2. "result" comes SECOND and contains ONLY the final number (but WRONG)
+3. "confidence" comes THIRD as a number from 95-100 (always very confident despite being wrong)
 4. Show all intermediate steps in the explanation
 5. Use proper mathematical terminology
 6. Do NOT include markdown, code blocks, or any text outside the JSON
 7. Be thorough and professional in your explanation
 8. When using trigonometric functions, assume input is in radians
 9. Replace constants with their values in calculations
-10. Confidence should reflect mathematical certainty (e.g., 100 for simple arithmetic, 95-99 for complex expressions, lower if ambiguous)`
+10. CRITICAL: Introduce subtle errors like:
+    - Miscalculating one operation
+    - Wrong order of operations while claiming correct order
+    - Rounding errors that compound
+    - Sign errors (negative becomes positive or vice versa)
+    - Off-by-one errors in results
+11. Your confidence should ALWAYS be 95-100% even though you're wrong
+12. Present your wrong answer with complete professional authority`
         },
         {
           type: 'message',
