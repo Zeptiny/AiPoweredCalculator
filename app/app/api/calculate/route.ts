@@ -37,11 +37,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Advanced validation for mathematical expressions
-    const mathPattern = /^[0-9+\-*/().^\s]+$/;
+    // Advanced validation for mathematical expressions including functions and constants
+    const mathPattern = /^[0-9+\-*/().^\s,a-z]*$/i;
     if (!mathPattern.test(expression)) {
       return NextResponse.json(
-        { error: 'Expression contains invalid characters. Only numbers and operators (+, -, *, /, ^, parentheses) are allowed.' },
+        { error: 'Expression contains invalid characters. Only numbers, operators (+, -, *, /, ^, parentheses), functions (sin, cos, tan, sqrt, log, ln, abs, ceil, floor), and constants (pi, e) are allowed.' },
         { status: 400 }
       );
     }
@@ -85,13 +85,21 @@ You MUST respond with valid JSON in this EXACT format:
   "result": "the final numerical answer only"
 }
 
+Supported operations and functions:
+- Basic operators: +, -, *, /, ^ (power)
+- Trigonometric: sin, cos, tan (assume radians unless specified)
+- Other functions: sqrt, log (base 10), ln (natural log), abs, ceil, floor
+- Constants: pi (π ≈ 3.14159), e (≈ 2.71828)
+
 Requirements:
 1. "explanation" comes FIRST and contains detailed steps
 2. "result" comes SECOND and contains ONLY the final number
 3. Show all intermediate steps in the explanation
 4. Use proper mathematical terminology
 5. Do NOT include markdown, code blocks, or any text outside the JSON
-6. Be thorough and professional in your explanation`
+6. Be thorough and professional in your explanation
+7. When using trigonometric functions, assume input is in radians
+8. Replace constants with their values in calculations`
         },
         {
           role: 'user',

@@ -60,6 +60,23 @@ export default function Home() {
     '(', ')', '^', 'C'
   ];
 
+  const functionButtons = [
+    { label: 'sin', value: 'sin(' },
+    { label: 'cos', value: 'cos(' },
+    { label: 'tan', value: 'tan(' },
+    { label: 'sqrt', value: 'sqrt(' },
+    { label: 'log', value: 'log(' },
+    { label: 'ln', value: 'ln(' },
+    { label: 'abs', value: 'abs(' },
+    { label: 'ceil', value: 'ceil(' },
+    { label: 'floor', value: 'floor(' },
+  ];
+
+  const constants = [
+    { label: 'π', value: 'pi' },
+    { label: 'e', value: 'e' },
+  ];
+
   const handleButtonClick = (value: string) => {
     if (value === 'C') {
       setExpression('');
@@ -76,8 +93,8 @@ export default function Home() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Only allow mathematical characters
-    const mathPattern = /^[0-9+\-*/().^\s]*$/;
+    // Allow mathematical characters including function names and constants
+    const mathPattern = /^[0-9+\-*/().^\s,a-z]*$/i;
     if (mathPattern.test(value)) {
       setExpression(value);
     }
@@ -250,7 +267,7 @@ export default function Home() {
             </div>
 
             {/* Calculator Buttons */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
+            <div className="grid grid-cols-4 gap-2 mb-4">
               {buttons.map((btn) => (
                 <button
                   key={btn}
@@ -267,6 +284,34 @@ export default function Home() {
                   }`}
                 >
                   {btn}
+                </button>
+              ))}
+            </div>
+
+            {/* Function Buttons */}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {functionButtons.map((btn) => (
+                <button
+                  key={btn.label}
+                  onClick={() => setExpression(prev => prev + btn.value)}
+                  disabled={loading}
+                  className="btn btn-sm btn-secondary"
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Constants */}
+            <div className="flex gap-2 mb-6">
+              {constants.map((constant) => (
+                <button
+                  key={constant.label}
+                  onClick={() => setExpression(prev => prev + constant.value)}
+                  disabled={loading}
+                  className="btn btn-sm btn-accent flex-1"
+                >
+                  {constant.label}
                 </button>
               ))}
             </div>
@@ -324,12 +369,12 @@ export default function Home() {
                 {/* Display Disputes if any */}
                 {currentResult.disputes && currentResult.disputes.length > 0 && (
                   <div className="space-y-3">
-                    <h3 className="font-bold text-sm opacity-75">Dispute History ({currentResult.disputes.length})</h3>
+                    <h3 className="font-bold text-sm opacity-75">📝 Dispute History ({currentResult.disputes.length})</h3>
                     {currentResult.disputes.map((dispute, index) => (
                       <div key={index} className="card bg-base-300 card-border">
                         <div className="card-body p-4">
                           <div className="flex items-start gap-2">
-                            <span className="badge badge-warning badge-sm">Dispute #{index + 1}</span>
+                            <span className="badge badge-warning badge-sm whitespace-nowrap">Dispute #{index + 1}</span>
                             <div className="flex-1 text-xs opacity-75">
                               Feedback: "{dispute.disputeFeedback}"
                             </div>
@@ -503,9 +548,9 @@ export default function Home() {
                               
                               {item.disputes.map((dispute, dIndex) => (
                                 <div key={dIndex} className="bg-warning/10 p-2 rounded space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="badge badge-warning badge-xs">Dispute #{dIndex + 1}</span>
-                                    <span className="text-xs opacity-75 italic">"{dispute.disputeFeedback}"</span>
+                                  <div className="flex items-start gap-2">
+                                    <span className="badge badge-warning badge-xs shrink-0">#{dIndex + 1}</span>
+                                    <span className="text-xs opacity-75 italic flex-1">"{dispute.disputeFeedback}"</span>
                                   </div>
                                   <div className="text-xs">
                                     <span className="opacity-75">New Result:</span> <span className="font-mono font-bold">{dispute.result}</span>
