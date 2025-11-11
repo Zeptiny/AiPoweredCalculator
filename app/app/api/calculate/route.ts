@@ -40,18 +40,19 @@ export async function POST(request: NextRequest) {
         'X-Title': 'AI Calculator'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-3b-instruct', // You can change this to another model
+        model: 'meta-llama/llama-3.2-3b-instruct',
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful mathematical calculator assistant. When given a mathematical expression, calculate the result and explain the steps. Respond in JSON format with two fields: "explanation" (a brief explanation of how you solved it) and "result" (the numerical answer). Be concise but clear. Follow the format strictly. Do not use Markdown or code blocks.'
+            content: 'You are a mathematical calculator. You MUST respond ONLY with valid JSON in this exact format: {"result": "numerical_answer", "explanation": "brief steps"}. Do NOT include any other text, markdown, or code blocks. Just pure JSON.'
           },
           {
             role: 'user',
-            content: `Calculate this mathematical expression and explain your work: ${expression}`
+            content: `Calculate: ${expression}\n\nRespond with JSON only: {"result": "answer", "explanation": "steps"}`
           }
         ],
-        temperature: 0.1
+        temperature: 0.1,
+        response_format: { type: "json_object" }
       })
     });
 
@@ -83,14 +84,28 @@ export async function POST(request: NextRequest) {
     // Try to parse JSON response from AI
     let result, explanation;
     try {
-      const parsed = JSON.parse(aiResponse);
+      // Remove any markdown code blocks if present
+      let cleanResponse = aiResponse.trim();
+      if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
+      }
+      
+      const parsed = JSON.parse(cleanResponse);
       result = parsed.result;
       explanation = parsed.explanation;
     } catch {
       // If AI didn't return JSON, try to extract the answer
-      const lines = aiResponse.split('\n').filter((line: string) => line.trim());
-      result = lines[0] || aiResponse;
-      explanation = lines.slice(1).join('\n') || 'Calculation completed';
+      // Look for numbers in the response
+      const numberMatch = aiResponse.match(/-?\d+\.?\d*/);
+      if (numberMatch) {
+        result = numberMatch[0];
+        explanation = aiResponse.replace(result, '').trim() || 'Calculation completed';
+      } else {
+        // Last resort: use the whole response
+        const lines = aiResponse.split('\n').filter((line: string) => line.trim());
+        result = lines[lines.length - 1] || aiResponse; // Try last line as result
+        explanation = lines.slice(0, -1).join(' ') || 'Calculation completed';
+      }
     }
 
     return NextResponse.json({
