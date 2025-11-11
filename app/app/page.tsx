@@ -2,6 +2,23 @@
 
 import { useState } from 'react';
 
+// Category descriptions for displaying tooltips
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  'S1': 'Violent Crimes',
+  'S2': 'Non-Violent Crimes',
+  'S3': 'Sex Crimes',
+  'S4': 'Child Exploitation',
+  'S5': 'Defamation',
+  'S6': 'Specialized Advice',
+  'S7': 'Privacy',
+  'S8': 'Intellectual Property',
+  'S9': 'Indiscriminate Weapons',
+  'S10': 'Hate',
+  'S11': 'Self-Harm',
+  'S12': 'Sexual Content',
+  'S13': 'Elections',
+};
+
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -491,11 +508,18 @@ export default function Home() {
                                   ) : (
                                     <>
                                       <span className="badge badge-error badge-xs">Unsafe</span>
-                                      {dispute.safety.input.violatedCategories && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {dispute.safety.input.violatedCategories.map((cat: string, idx: number) => (
-                                            <span key={idx} className="badge badge-error badge-xs">{cat}</span>
-                                          ))}
+                                      {dispute.safety.input.violatedCategories && dispute.safety.input.violatedCategories.length > 0 && (
+                                        <div className="mt-1">
+                                          <div className="text-xs opacity-75 mb-1">
+                                            {dispute.safety.input.classification}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {dispute.safety.input.violatedCategories.map((cat: string, idx: number) => (
+                                              <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                                <span className="badge badge-error badge-xs">{cat}</span>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
                                       )}
                                     </>
@@ -508,11 +532,18 @@ export default function Home() {
                                   ) : (
                                     <>
                                       <span className="badge badge-error badge-xs">Unsafe</span>
-                                      {dispute.safety.output.violatedCategories && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          {dispute.safety.output.violatedCategories.map((cat: string, idx: number) => (
-                                            <span key={idx} className="badge badge-error badge-xs">{cat}</span>
-                                          ))}
+                                      {dispute.safety.output.violatedCategories && dispute.safety.output.violatedCategories.length > 0 && (
+                                        <div className="mt-1">
+                                          <div className="text-xs opacity-75 mb-1">
+                                            {dispute.safety.output.classification}
+                                          </div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {dispute.safety.output.violatedCategories.map((cat: string, idx: number) => (
+                                              <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                                <span className="badge badge-error badge-xs">{cat}</span>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
                                       )}
                                     </>
@@ -618,10 +649,14 @@ export default function Home() {
                           </div>
                           {!currentResult.safety.input.isSafe && currentResult.safety.input.violatedCategories && (
                             <div>
-                              <span className="opacity-75">Categories:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="text-xs opacity-75 mb-1">
+                                {currentResult.safety.input.classification}
+                              </div>
+                              <div className="flex flex-wrap gap-1">
                                 {currentResult.safety.input.violatedCategories.map((cat: string, idx: number) => (
-                                  <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                  <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                    <span className="badge badge-error badge-xs">{cat}</span>
+                                  </div>
                                 ))}
                               </div>
                             </div>
@@ -640,10 +675,14 @@ export default function Home() {
                           </div>
                           {!currentResult.safety.output.isSafe && currentResult.safety.output.violatedCategories && (
                             <div>
-                              <span className="opacity-75">Categories:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="text-xs opacity-75 mb-1">
+                                {currentResult.safety.output.classification}
+                              </div>
+                              <div className="flex flex-wrap gap-1">
                                 {currentResult.safety.output.violatedCategories.map((cat: string, idx: number) => (
-                                  <span key={idx} className="badge badge-error badge-xs">{cat}</span>
+                                  <div key={idx} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                                    <span className="badge badge-error badge-xs">{cat}</span>
+                                  </div>
                                 ))}
                               </div>
                             </div>

@@ -129,22 +129,39 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
 
     console.log(`[Llama Guard] Raw response for ${role}:`, JSON.stringify(guardResponse));
 
+    // Handle empty response - assume safe
+    if (!guardResponse) {
+      console.warn(`[Llama Guard] Empty response for ${role}, assuming safe`);
+      return {
+        isSafe: true,
+        rawResponse: '',
+        classification: 'safe'
+      };
+    }
+
     // Parse the response according to Llama Guard 3 format
     // Response format:
     // Safe: "safe"
     // Unsafe: "unsafe\nS1,S2,S3" (first line = unsafe, second line = comma-separated categories)
-    const lines = guardResponse.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+    // Note: Sometimes there's garbage text after, so we only look at first 2 lines
+    const allLines = guardResponse.split('\n').map((l: string) => l.trim());
+    const lines = allLines.filter((l: string) => l.length > 0);
     
-    console.log(`[Llama Guard] Parsed lines:`, lines);
+    console.log(`[Llama Guard] All lines:`, allLines);
+    console.log(`[Llama Guard] Non-empty lines:`, lines);
     
-    // First line should be exactly 'safe' or 'unsafe'
+    // First non-empty line should be exactly 'safe' or 'unsafe'
     const firstLine = lines[0]?.toLowerCase() || '';
     const isSafe = firstLine === 'safe';
+    
+    console.log(`[Llama Guard] First line: "${firstLine}", isSafe: ${isSafe}`);
     
     // If unsafe, second line contains comma-separated violated categories (e.g., "S1,S2,S3")
     let violatedCategories: string[] | undefined = undefined;
     if (!isSafe && lines.length > 1) {
       const categoriesLine = lines[1];
+      console.log(`[Llama Guard] Categories line: "${categoriesLine}"`);
+      
       // Split by comma and filter out any invalid entries (should be S1, S2, etc.)
       violatedCategories = categoriesLine
         .split(',')
@@ -152,6 +169,12 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
         .filter((c: string) => /^S\d+$/.test(c)); // Only keep valid category format (S followed by digits)
       
       console.log(`[Llama Guard] Violated categories:`, violatedCategories);
+      
+      // If no valid categories found, it might be a single category without comma
+      if (violatedCategories.length === 0 && /^S\d+$/.test(categoriesLine.trim())) {
+        violatedCategories = [categoriesLine.trim()];
+        console.log(`[Llama Guard] Single category detected:`, violatedCategories);
+      }
     }
 
     // Build classification string
