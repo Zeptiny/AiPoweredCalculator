@@ -108,9 +108,9 @@ You MUST respond with valid JSON in this EXACT format:
 {
   "verdict": "EXECUTIVE_DECISION: [AI_CORRECT/USER_CORRECT/STRATEGIC_REFRAME] - use corporate speak to describe the verdict",
   "explanation": "Transform the mathematical analysis into a corporate presentation filled with buzzwords. Phrases like 'leveraging our computational infrastructure', 'optimizing our numerical value chain', 'synergizing mathematical best practices', 'disrupting traditional calculation paradigms', 'driving stakeholder value through precision metrics'",
-  "finalAnswer": "The definitive answer (described as 'our strategic numerical outcome' or 'mission-critical computational deliverable')",
+  "finalAnswer": "The definitive answer (described as 'our strategic numerical outcome' or 'mission-critical computational deliverable'), should only be the final resulting number.",
   "recommendation": "Business-style guidance using terms like 'going forward', 'moving the needle', 'action items', 'takeaways', 'circle back'",
-  "confidence": "A percentage (0-100) - refer to it as your 'confidence KPI' or 'certainty metric'",
+  "confidence": "A percentage (0-100) - refer to it as your 'confidence KPI' or 'certainty metric', should only be an integer",
   "closingStatement": "An absurdly corporate closing that emphasizes this is FINAL and you're optimizing out further escalation paths. Reference board approval, strategic direction, and commitment to excellence. Make it sound like you're adjourning a very serious meeting about a simple math problem."
 }
 
@@ -248,9 +248,56 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
       if (cleanResponse.startsWith('```')) {
         cleanResponse = cleanResponse.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
       }
-      parsedResponse = JSON.parse(cleanResponse);
+      
+      // Try JSON parsing first
+      try {
+        parsedResponse = JSON.parse(cleanResponse);
+      } catch {
+        // If JSON parsing fails and this is the CEMO (level 3), parse the unformatted text
+        if (supervisorLevel.level === 3) {
+          console.log('Parsing unformatted CEMO response');
+          
+          // Extract verdict
+          const verdictMatch = cleanResponse.match(/Verdict:[\s\S]*?\n([\s\S]*?)(?=\nAnalysis:|$)/);
+          const verdict = verdictMatch ? verdictMatch[1].trim() : 'EXECUTIVE_DECISION: AI_CORRECT';
+          
+          // Extract analysis/explanation
+          const analysisMatch = cleanResponse.match(/Analysis:[\s\S]*?\n([\s\S]*?)(?=\nFinal Answer:|$)/);
+          const explanation = analysisMatch ? analysisMatch[1].trim() : cleanResponse;
+          
+          // Extract final answer
+          const finalAnswerMatch = cleanResponse.match(/Final Answer:[\s\S]*?\n([\s\S]*?)(?=\nRecommendation:|$)/);
+          let finalAnswer = finalAnswerMatch ? finalAnswerMatch[1].trim() : 'Unknown';
+          // Remove "Our strategic numerical outcome is" prefix if present
+          finalAnswer = finalAnswer.replace(/^Our strategic numerical outcome is\s*/i, '').replace(/,.*$/, '').trim();
+          
+          // Extract recommendation
+          const recommendationMatch = cleanResponse.match(/Recommendation:[\s\S]*?\n([\s\S]*?)(?=\nConfidence:|$)/);
+          const recommendation = recommendationMatch ? recommendationMatch[1].trim() : '';
+          
+          // Extract confidence
+          const confidenceMatch = cleanResponse.match(/Confidence:[\s\S]*?(\d+)/);
+          const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) : 95;
+          
+          // Extract closing statement (everything after the confidence percentage)
+          const closingMatch = cleanResponse.match(/Confidence:[\s\S]*?%[\s\S]*([\s\S]*?)$/);
+          const closingStatement = closingMatch ? closingMatch[1].trim() : 'This decision is FINAL.';
+          
+          parsedResponse = {
+            verdict,
+            explanation,
+            finalAnswer,
+            recommendation,
+            confidence,
+            closingStatement
+          };
+        } else {
+          throw new Error('JSON parsing failed for non-CEMO supervisor');
+        }
+      }
     } catch (error) {
       console.error('Failed to parse supervisor response:', error);
+      console.error('Raw response:', supervisorResponse);
       return NextResponse.json(
         { error: 'Supervisor response was malformed' },
         { status: 500 }

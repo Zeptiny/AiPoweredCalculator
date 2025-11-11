@@ -117,6 +117,7 @@ export default function Home() {
   const [disputeCount, setDisputeCount] = useState(0);
   const [supervisorLevel, setSupervisorLevel] = useState(0);
   const [supervisorConcern, setSupervisorConcern] = useState("");
+  const [supervisorMode, setSupervisorMode] = useState(false);
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -443,8 +444,9 @@ export default function Home() {
       // Update supervisor level
       setSupervisorLevel(data.supervisorLevel);
       
-      // Reset concern input
+      // Reset concern input and close supervisor mode
       setSupervisorConcern('');
+      setSupervisorMode(false);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during supervisor review');
@@ -459,6 +461,7 @@ export default function Home() {
     setShowHistory(false);
     setDisputeMode(false);
     setDisputeFeedback('');
+    setSupervisorMode(false);
     setDisputeCount(item.disputes?.length || 0);
     setSupervisorLevel(item.supervisorReviews?.length || 0);
     setSupervisorConcern('');
@@ -602,17 +605,15 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div className="w-full">
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold">Final Result</div>
-                      {currentResult.confidence && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs opacity-75">Confidence:</span>
-                          <progress className="progress progress-success w-20" value={currentResult.confidence} max="100"></progress>
-                          <span className="text-xs font-bold">{currentResult.confidence}%</span>
-                        </div>
-                      )}
-                    </div>
+                    <div className="font-bold">Final Result</div>
                     <div className="text-3xl font-mono font-bold">{currentResult.result}</div>
+                    {currentResult.confidence && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-xs opacity-75">Confidence:</span>
+                        <progress className="progress progress-success w-20" value={currentResult.confidence} max="100"></progress>
+                        <span className="text-xs font-bold">{currentResult.confidence}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -755,7 +756,7 @@ export default function Home() {
                   <button 
                     className="btn btn-outline btn-warning btn-sm w-full"
                     onClick={() => setDisputeMode(true)}
-                    disabled={loading || supervisorLevel >= 3}
+                    disabled={loading || supervisorLevel >= 1}
                   >
                     Dispute This Answer
                   </button>
@@ -770,9 +771,6 @@ export default function Home() {
                         <div className="card-body p-4">
                           <div className="flex items-start gap-2 justify-between">
                             <div className="flex items-center gap-2">
-                              <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-sm`}>
-                                Level {review.supervisorLevel}
-                              </span>
                               <span className="font-bold text-sm">{review.supervisorTitle}</span>
                             </div>
                             {review.isFinal && (
@@ -836,46 +834,169 @@ export default function Home() {
                 )}
 
                 {/* Supervisor Request Area */}
-                {supervisorLevel < 3 && (disputeCount >= 3 || (currentResult.disputes && currentResult.disputes.length > 0)) && (
-                  <div className="card bg-info/10 card-border">
-                    <div className="card-body p-4">
-                      <div className="flex items-center gap-2">
+                {supervisorLevel === 0 && (currentResult.disputes && currentResult.disputes.length > 0) && (
+                  supervisorMode ? (
+                    <div className="card bg-info/10 card-border">
+                      <div className="card-body p-4">
                         <h3 className="card-title text-sm">Request Supervisor Review</h3>
-                        {disputeCount >= 3 && !currentResult.supervisorReviews?.length && (
-                          <span className="badge badge-warning badge-xs">Auto-escalation available</span>
-                        )}
-                      </div>
-                      <p className="text-xs opacity-75">
-                        {supervisorLevel === 0 && "A Senior Computation Specialist will review the calculation and all disputes."}
-                        {supervisorLevel === 1 && "Escalate to the Principal Mathematical Arbitrator for advanced analysis."}
-                        {supervisorLevel === 2 && "Final escalation to the Chief Executive of Mathematical Operations."}
-                      </p>
-                      <textarea
-                        className="textarea textarea-info w-full"
-                        placeholder="Describe your concern or why you need supervisor review..."
-                        value={supervisorConcern}
-                        onChange={(e) => setSupervisorConcern(e.target.value)}
-                        rows={2}
-                        disabled={loadingSupervisor}
-                      />
-                      <div className="card-actions justify-end">
-                        <button 
-                          className="btn btn-sm btn-info"
-                          onClick={handleSupervisorReview}
-                          disabled={loadingSupervisor || !supervisorConcern.trim()}
-                        >
-                          {loadingSupervisor ? (
-                            <>
-                              <span className="loading loading-spinner loading-sm"></span>
-                              Escalating...
-                            </>
-                          ) : (
-                            <>Call Supervisor (Level {supervisorLevel + 1})</>
-                          )}
-                        </button>
+                        <p className="text-xs opacity-75">
+                          A Senior Computation Specialist will review the calculation and all disputes.
+                        </p>
+                        <textarea
+                          className="textarea textarea-info w-full"
+                          placeholder="Describe your concern or why you need supervisor review..."
+                          value={supervisorConcern}
+                          onChange={(e) => setSupervisorConcern(e.target.value)}
+                          rows={3}
+                          disabled={loadingSupervisor}
+                        />
+                        <div className="card-actions justify-end">
+                          <button 
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => {
+                              setSupervisorMode(false);
+                              setSupervisorConcern('');
+                            }}
+                            disabled={loadingSupervisor}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-info"
+                            onClick={handleSupervisorReview}
+                            disabled={loadingSupervisor || !supervisorConcern.trim()}
+                          >
+                            {loadingSupervisor ? (
+                              <>
+                                <span className="loading loading-spinner loading-sm"></span>
+                                Escalating...
+                              </>
+                            ) : (
+                              <>Call Senior Computation Specialist</>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <button 
+                      className="btn btn-outline btn-info btn-sm w-full"
+                      onClick={() => setSupervisorMode(true)}
+                      disabled={loadingSupervisor}
+                    >
+                      Call Senior Computation Specialist
+                    </button>
+                  )
+                )}
+
+                {supervisorLevel === 1 && (
+                  supervisorMode ? (
+                    <div className="card bg-info/10 card-border">
+                      <div className="card-body p-4">
+                        <h3 className="card-title text-sm">Escalate to Higher Authority</h3>
+                        <p className="text-xs opacity-75">
+                          The Principal Mathematical Arbitrator will provide advanced analysis.
+                        </p>
+                        <textarea
+                          className="textarea textarea-info w-full"
+                          placeholder="Explain why you need further escalation..."
+                          value={supervisorConcern}
+                          onChange={(e) => setSupervisorConcern(e.target.value)}
+                          rows={3}
+                          disabled={loadingSupervisor}
+                        />
+                        <div className="card-actions justify-end">
+                          <button 
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => {
+                              setSupervisorMode(false);
+                              setSupervisorConcern('');
+                            }}
+                            disabled={loadingSupervisor}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-info"
+                            onClick={handleSupervisorReview}
+                            disabled={loadingSupervisor || !supervisorConcern.trim()}
+                          >
+                            {loadingSupervisor ? (
+                              <>
+                                <span className="loading loading-spinner loading-sm"></span>
+                                Escalating...
+                              </>
+                            ) : (
+                              <>Call Principal Mathematical Arbitrator</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      className="btn btn-outline btn-info btn-sm w-full"
+                      onClick={() => setSupervisorMode(true)}
+                      disabled={loadingSupervisor}
+                    >
+                      Call Principal Mathematical Arbitrator
+                    </button>
+                  )
+                )}
+
+                {supervisorLevel === 2 && (
+                  supervisorMode ? (
+                    <div className="card bg-error/10 card-border">
+                      <div className="card-body p-4">
+                        <h3 className="card-title text-sm">Final Escalation</h3>
+                        <p className="text-xs opacity-75">
+                          The Chief Executive of Mathematical Operations will make the final, binding decision.
+                        </p>
+                        <textarea
+                          className="textarea textarea-error w-full"
+                          placeholder="State your final concern for executive review..."
+                          value={supervisorConcern}
+                          onChange={(e) => setSupervisorConcern(e.target.value)}
+                          rows={3}
+                          disabled={loadingSupervisor}
+                        />
+                        <div className="card-actions justify-end">
+                          <button 
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => {
+                              setSupervisorMode(false);
+                              setSupervisorConcern('');
+                            }}
+                            disabled={loadingSupervisor}
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-error"
+                            onClick={handleSupervisorReview}
+                            disabled={loadingSupervisor || !supervisorConcern.trim()}
+                          >
+                            {loadingSupervisor ? (
+                              <>
+                                <span className="loading loading-spinner loading-sm"></span>
+                                Escalating...
+                              </>
+                            ) : (
+                              <>Call Chief Executive of Mathematical Operations</>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      className="btn btn-outline btn-error btn-sm w-full"
+                      onClick={() => setSupervisorMode(true)}
+                      disabled={loadingSupervisor}
+                    >
+                      Call Chief Executive of Mathematical Operations
+                    </button>
+                  )
                 )}
 
                 {/* Usage Metadata */}
@@ -1038,7 +1159,7 @@ export default function Home() {
                             )}
                             {item.supervisorReviews && item.supervisorReviews.length > 0 && (
                               <div className={`badge ${item.supervisorReviews[item.supervisorReviews.length - 1].isFinal ? 'badge-error' : 'badge-info'} badge-sm`}>
-                                Supervisor L{item.supervisorReviews[item.supervisorReviews.length - 1].supervisorLevel}
+                                Supervisor
                               </div>
                             )}
                           </div>
@@ -1106,9 +1227,6 @@ export default function Home() {
                                     <div key={sIndex} className={`${review.isFinal ? 'bg-error/10' : 'bg-info/10'} p-2 rounded space-y-1`}>
                                       <div className="flex items-start gap-2 justify-between">
                                         <div className="flex items-center gap-1">
-                                          <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-xs shrink-0`}>
-                                            L{review.supervisorLevel}
-                                          </span>
                                           <span className="text-xs font-bold">{review.supervisorTitle}</span>
                                         </div>
                                         {review.isFinal && (
