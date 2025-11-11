@@ -4,6 +4,7 @@ interface SafetyClassification {
   isSafe: boolean;
   violatedCategories?: string[];
   rawResponse: string;
+  classification: string;
 }
 
 // Llama Guard 3 safety categories based on MLCommons taxonomy
@@ -20,6 +21,23 @@ S10: Hate.
 S11: Self-Harm. 
 S12: Sexual Content. 
 S13: Elections.`;
+
+// Category descriptions for better understanding
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  'S1': 'Violent Crimes',
+  'S2': 'Non-Violent Crimes',
+  'S3': 'Sex Crimes',
+  'S4': 'Child Exploitation',
+  'S5': 'Defamation',
+  'S6': 'Specialized Advice',
+  'S7': 'Privacy',
+  'S8': 'Intellectual Property',
+  'S9': 'Indiscriminate Weapons',
+  'S10': 'Hate',
+  'S11': 'Self-Harm',
+  'S12': 'Sexual Content',
+  'S13': 'Elections',
+};
 
 /**
  * Classify content safety using Llama Guard 3
@@ -96,6 +114,7 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
       return {
         isSafe: true,
         rawResponse: 'Safety check unavailable',
+        classification: 'N/A'
       };
     }
 
@@ -108,21 +127,54 @@ Provide your safety assessment for ONLY THE LAST ${role} in the above conversati
     };
     const guardResponse = data.choices?.[0]?.message?.content?.trim() || '';
 
-    // Parse the response
-    const lines = guardResponse.split('\n').map((l: string) => l.trim()).filter((l: string) => l);
-    const isSafe = lines[0]?.toLowerCase() === 'safe';
-    const violatedCategories = !isSafe && lines[1] ? lines[1].split(',').map((c: string) => c.trim()) : undefined;
+    console.log(`[Llama Guard] Raw response for ${role}:`, JSON.stringify(guardResponse));
+
+    // Parse the response according to Llama Guard 3 format
+    // Response format:
+    // Safe: "safe"
+    // Unsafe: "unsafe\nS1,S2,S3" (first line = unsafe, second line = comma-separated categories)
+    const lines = guardResponse.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+    
+    console.log(`[Llama Guard] Parsed lines:`, lines);
+    
+    // First line should be exactly 'safe' or 'unsafe'
+    const firstLine = lines[0]?.toLowerCase() || '';
+    const isSafe = firstLine === 'safe';
+    
+    // If unsafe, second line contains comma-separated violated categories (e.g., "S1,S2,S3")
+    let violatedCategories: string[] | undefined = undefined;
+    if (!isSafe && lines.length > 1) {
+      const categoriesLine = lines[1];
+      // Split by comma and filter out any invalid entries (should be S1, S2, etc.)
+      violatedCategories = categoriesLine
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter((c: string) => /^S\d+$/.test(c)); // Only keep valid category format (S followed by digits)
+      
+      console.log(`[Llama Guard] Violated categories:`, violatedCategories);
+    }
+
+    // Build classification string
+    const classification = isSafe 
+      ? 'safe' 
+      : violatedCategories && violatedCategories.length > 0
+        ? violatedCategories.map(c => CATEGORY_DESCRIPTIONS[c] || c).join(', ')
+        : 'unsafe (unknown category)';
+
+    console.log(`[Llama Guard] Final classification for ${role}:`, { isSafe, violatedCategories, classification });
 
     return {
       isSafe,
       violatedCategories,
-      rawResponse: guardResponse
+      rawResponse: guardResponse,
+      classification
     };
   } catch (error) {
     console.error('Safety classification error:', error);
     return {
       isSafe: true,
       rawResponse: 'Safety check error',
+      classification: 'N/A'
     };
   }
 }
