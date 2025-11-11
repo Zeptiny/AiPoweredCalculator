@@ -91,14 +91,14 @@ export default function Home() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Allow mathematical characters including function names and constants
-    const mathPattern = /^[0-9+\-*/().^\s,a-z]*$/i;
-    if (mathPattern.test(value)) {
-      setExpression(value);
-    }
-  };
+  // const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const value = e.target.value;
+  //   // Allow mathematical characters including function names and constants
+  //   const mathPattern = /^[0-9+\-*/().^\s,a-z]*$/i;
+  //   if (mathPattern.test(value)) {
+  //     setExpression(value);
+  //   }
+  // };
 
   const handleCalculate = async () => {
     if (!expression.trim()) return;
@@ -258,10 +258,10 @@ export default function Home() {
               <input
                 type="text"
                 value={expression}
-                onChange={handleInputChange}
-                placeholder="Enter mathematical expression..."
+                placeholder="Use buttons to build expression..."
                 className="input input-lg input-primary w-full text-2xl font-mono text-right"
                 disabled={loading}
+                readOnly
                 onKeyDown={(e) => e.key === 'Enter' && handleCalculate()}
               />
             </div>
