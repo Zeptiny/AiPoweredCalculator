@@ -177,6 +177,8 @@ export default function Home() {
           if (typedSafetyData.safety) {
             setCurrentResult(prev => {
               if (!prev) return prev;
+              console.log(typedSafetyData.safety!.input);
+              console.log(typedSafetyData.safety!.output);
               return {
                 ...prev,
                 safety: {
