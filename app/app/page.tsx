@@ -2,10 +2,33 @@
 
 import { useState } from 'react';
 
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface DisputeResponse {
+  explanation: string;
+  result: string;
+  metadata?: {
+    processingTime: string;
+    model: string;
+    usage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+    timestamp: string;
+  };
+  disputeFeedback: string;
+}
+
 interface CalculationResult {
   expression: string;
   explanation: string;
   result: string;
+  conversationHistory?: ChatMessage[];
+  disputes?: DisputeResponse[];
   metadata?: {
     processingTime: string;
     model: string;
@@ -25,6 +48,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [disputeMode, setDisputeMode] = useState(false);
+  const [disputeFeedback, setDisputeFeedback] = useState('');
+  const [expandedHistoryIndex, setExpandedHistoryIndex] = useState<number | null>(null);
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -39,6 +65,8 @@ export default function Home() {
       setExpression('');
       setCurrentResult(null);
       setError('');
+      setDisputeMode(false);
+      setDisputeFeedback('');
     } else if (value === '=') {
       handleCalculate();
     } else {
@@ -61,6 +89,7 @@ export default function Home() {
     setLoading(true);
     setError('');
     setCurrentResult(null);
+    setDisputeMode(false);
 
     try {
       const response = await fetch('/api/calculate', {
@@ -74,6 +103,7 @@ export default function Home() {
       const data = await response.json() as { 
         explanation?: string; 
         result?: string; 
+        conversationHistory?: ChatMessage[];
         metadata?: CalculationResult['metadata'];
         error?: string;
       };
@@ -86,13 +116,91 @@ export default function Home() {
         expression,
         explanation: data.explanation || '',
         result: data.result || '',
+        conversationHistory: data.conversationHistory,
+        disputes: [],
         metadata: data.metadata
       };
 
       setCurrentResult(calculationResult);
-      setHistory(prev => [calculationResult, ...prev].slice(0, 10)); // Keep last 10 calculations
+      
+      // Update history
+      setHistory(prev => {
+        const updated = [calculationResult, ...prev].slice(0, 10);
+        return updated;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDispute = async () => {
+    if (!currentResult || !disputeFeedback.trim()) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          expression: currentResult.expression,
+          conversationHistory: currentResult.conversationHistory,
+          disputeFeedback: disputeFeedback
+        }),
+      });
+
+      const data = await response.json() as { 
+        explanation?: string; 
+        result?: string; 
+        conversationHistory?: ChatMessage[];
+        metadata?: CalculationResult['metadata'];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process dispute');
+      }
+
+      const disputeResponse: DisputeResponse = {
+        explanation: data.explanation || '',
+        result: data.result || '',
+        metadata: data.metadata,
+        disputeFeedback: disputeFeedback
+      };
+
+      // Update current result with dispute
+      const updatedResult: CalculationResult = {
+        ...currentResult,
+        conversationHistory: data.conversationHistory,
+        disputes: [...(currentResult.disputes || []), disputeResponse]
+      };
+
+      setCurrentResult(updatedResult);
+      
+      // Update history to replace the current calculation
+      setHistory(prev => {
+        const index = prev.findIndex(item => 
+          item.expression === currentResult.expression && 
+          item.metadata?.timestamp === currentResult.metadata?.timestamp
+        );
+        
+        if (index !== -1) {
+          const newHistory = [...prev];
+          newHistory[index] = updatedResult;
+          return newHistory;
+        }
+        return prev;
+      });
+
+      setDisputeMode(false);
+      setDisputeFeedback('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred during dispute');
     } finally {
       setLoading(false);
     }
@@ -102,6 +210,12 @@ export default function Home() {
     setExpression(item.expression);
     setCurrentResult(item);
     setShowHistory(false);
+    setDisputeMode(false);
+    setDisputeFeedback('');
+  };
+
+  const toggleHistoryExpand = (index: number) => {
+    setExpandedHistoryIndex(expandedHistoryIndex === index ? null : index);
   };
 
   return (
@@ -207,6 +321,86 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Display Disputes if any */}
+                {currentResult.disputes && currentResult.disputes.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="font-bold text-sm opacity-75">Dispute History ({currentResult.disputes.length})</h3>
+                    {currentResult.disputes.map((dispute, index) => (
+                      <div key={index} className="card bg-base-300 card-border">
+                        <div className="card-body p-4">
+                          <div className="flex items-start gap-2">
+                            <span className="badge badge-warning badge-sm">Dispute #{index + 1}</span>
+                            <div className="flex-1 text-xs opacity-75">
+                              Feedback: "{dispute.disputeFeedback}"
+                            </div>
+                          </div>
+                          <div className="divider my-2"></div>
+                          <div className="space-y-2">
+                            <div>
+                              <div className="font-bold text-xs opacity-75">Revised Analysis:</div>
+                              <p className="text-sm">{dispute.explanation}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs opacity-75">Revised Result:</span>
+                              <span className="font-mono font-bold text-lg">{dispute.result}</span>
+                            </div>
+                          </div>
+                          {dispute.metadata && (
+                            <div className="text-xs opacity-50 mt-2">
+                              {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Dispute Input Area */}
+                {disputeMode ? (
+                  <div className="card bg-warning/10 card-border">
+                    <div className="card-body">
+                      <h3 className="card-title text-sm">Dispute Response</h3>
+                      <p className="text-xs opacity-75">Provide feedback or explain why the answer is incorrect:</p>
+                      <textarea
+                        className="textarea textarea-warning w-full"
+                        placeholder="E.g., 'The order of operations is wrong' or 'The result should be 42'"
+                        value={disputeFeedback}
+                        onChange={(e) => setDisputeFeedback(e.target.value)}
+                        rows={3}
+                        disabled={loading}
+                      />
+                      <div className="card-actions justify-end">
+                        <button 
+                          className="btn btn-sm btn-ghost"
+                          onClick={() => {
+                            setDisputeMode(false);
+                            setDisputeFeedback('');
+                          }}
+                          disabled={loading}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-warning"
+                          onClick={handleDispute}
+                          disabled={loading || !disputeFeedback.trim()}
+                        >
+                          {loading ? <span className="loading loading-spinner loading-sm"></span> : 'Submit Dispute'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    className="btn btn-outline btn-warning btn-sm w-full"
+                    onClick={() => setDisputeMode(true)}
+                    disabled={loading}
+                  >
+                    ⚠️ Dispute This Answer
+                  </button>
+                )}
+
                 {/* Usage Metadata */}
                 {currentResult.metadata && (
                   <div className="stats stats-vertical lg:stats-horizontal shadow w-full">
@@ -256,11 +450,20 @@ export default function Home() {
                   {history.map((item, index) => (
                     <div 
                       key={index}
-                      className="card card-border bg-base-200 hover:bg-base-300 cursor-pointer transition-colors"
-                      onClick={() => loadFromHistory(item)}
+                      className="card card-border bg-base-200"
                     >
-                      <div className="card-body p-4">
-                        <div className="font-mono text-sm font-bold">{item.expression}</div>
+                      <div 
+                        className="card-body p-4 hover:bg-base-300 cursor-pointer transition-colors"
+                        onClick={() => loadFromHistory(item)}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-mono text-sm font-bold flex-1">{item.expression}</div>
+                          {item.disputes && item.disputes.length > 0 && (
+                            <div className="badge badge-warning badge-sm">
+                              {item.disputes.length} dispute{item.disputes.length > 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center justify-between text-xs opacity-75">
                           <span>= {item.result}</span>
                           {item.metadata && (
@@ -273,6 +476,51 @@ export default function Home() {
                           </div>
                         )}
                       </div>
+                      
+                      {/* Expandable Disputes Section */}
+                      {item.disputes && item.disputes.length > 0 && (
+                        <div className="border-t border-base-300">
+                          <button
+                            className="w-full px-4 py-2 text-xs hover:bg-base-300 transition-colors flex items-center justify-between"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleHistoryExpand(index);
+                            }}
+                          >
+                            <span>View Disputes ({item.disputes.length})</span>
+                            <span className="text-lg">{expandedHistoryIndex === index ? '▲' : '▼'}</span>
+                          </button>
+                          
+                          {expandedHistoryIndex === index && (
+                            <div className="p-4 bg-base-300 space-y-2">
+                              <div className="text-xs font-bold opacity-75 mb-2">Original Response:</div>
+                              <div className="text-xs bg-base-100 p-2 rounded">
+                                <div className="opacity-75">Result: <span className="font-mono">{item.result}</span></div>
+                                <div className="opacity-75 mt-1 line-clamp-2">Explanation: {item.explanation}</div>
+                              </div>
+                              
+                              <div className="divider my-2"></div>
+                              
+                              {item.disputes.map((dispute, dIndex) => (
+                                <div key={dIndex} className="bg-warning/10 p-2 rounded space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="badge badge-warning badge-xs">Dispute #{dIndex + 1}</span>
+                                    <span className="text-xs opacity-75 italic">"{dispute.disputeFeedback}"</span>
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="opacity-75">New Result:</span> <span className="font-mono font-bold">{dispute.result}</span>
+                                  </div>
+                                  {dispute.metadata && (
+                                    <div className="text-xs opacity-50">
+                                      {dispute.metadata.usage.totalTokens} tokens
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
