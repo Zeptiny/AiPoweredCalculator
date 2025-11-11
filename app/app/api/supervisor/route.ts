@@ -306,6 +306,7 @@ As the ${supervisorLevel.title}, please review this dispute thoroughly and provi
     const usage = data.usage || {};
 
     console.log(`Supervisor Level ${supervisorLevel.level} final answer: ${parsedResponse.finalAnswer}`);
+    console.log(`Supervisor Level ${supervisorLevel.level} full response: ${supervisorResponse}`);
 
     return NextResponse.json({
       supervisorLevel: supervisorLevel.level,
