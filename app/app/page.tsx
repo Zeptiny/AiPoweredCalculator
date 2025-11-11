@@ -824,9 +824,6 @@ export default function Home() {
                         <div className="card-body p-4">
                           <div className="flex items-start gap-2">
                             <span className="badge badge-warning badge-sm whitespace-nowrap">Dispute Agent #{index + 1}</span>
-                            {dispute.agentName && (
-                              <span className="badge badge-outline badge-warning badge-xs">{dispute.agentName}</span>
-                            )}
                           </div>
                           
                           {dispute.agentName && (
