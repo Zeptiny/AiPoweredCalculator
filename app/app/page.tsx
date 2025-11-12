@@ -184,16 +184,18 @@ export default function Home() {
     setSupervisorLevel(0);
     setSupervisorConcern('');
 
-    // Simulate progressive loading steps
+    // Sequential loading steps - appear one at a time
     const steps = [
-      { step: 0, delay: 0 },
-      { step: 1, delay: 300 },
-      { step: 2, delay: 600 },
-      { step: 3, delay: 900 },
+      { step: 1, delay: 400 },
+      { step: 2, delay: 800 },
+      { step: 3, delay: 1200 },
+      { step: 4, delay: 1600 },
     ];
 
+    const timeouts: NodeJS.Timeout[] = [];
     steps.forEach(({ step, delay }) => {
-      setTimeout(() => setLoadingStep(step), delay);
+      const timeout = setTimeout(() => setLoadingStep(step), delay);
+      timeouts.push(timeout);
     });
 
     try {
@@ -282,7 +284,22 @@ export default function Home() {
     if (!currentResult || !disputeFeedback.trim()) return;
 
     setLoading(true);
+    setLoadingStep(0);
     setError('');
+
+    // Sequential loading steps for disputes
+    const steps = [
+      { step: 1, delay: 400 },
+      { step: 2, delay: 800 },
+      { step: 3, delay: 1200 },
+      { step: 4, delay: 1600 },
+    ];
+
+    const timeouts: NodeJS.Timeout[] = [];
+    steps.forEach(({ step, delay }) => {
+      const timeout = setTimeout(() => setLoadingStep(step), delay);
+      timeouts.push(timeout);
+    });
 
     try {
       const response = await fetch('/api/calculate', {
@@ -642,18 +659,26 @@ export default function Home() {
                 <div className="w-full">
                   <div className="font-bold">Processing Request...</div>
                   <div className="text-xs space-y-1 mt-2">
-                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 0 ? 'opacity-100' : 'opacity-30'}`}>
-                      {loadingStep > 0 ? '✓' : '○'} Parsing expression syntax
-                    </div>
-                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 1 ? 'opacity-100' : 'opacity-30'}`}>
-                      {loadingStep > 1 ? '✓' : '○'} Analyzing mathematical structure
-                    </div>
-                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 2 ? 'opacity-100' : 'opacity-30'}`}>
-                      {loadingStep > 2 ? '✓' : '○'} Executing AI computation engine
-                    </div>
-                    <div className={`flex items-center gap-2 transition-opacity ${loadingStep >= 3 ? 'opacity-100' : 'opacity-30'}`}>
-                      {loadingStep > 3 ? '✓' : '○'} Validating results
-                    </div>
+                    {loadingStep >= 1 && (
+                      <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 1 ? 'opacity-100' : 'opacity-70'}`}>
+                        {loadingStep > 1 ? '✓' : '○'} Parsing expression syntax
+                      </div>
+                    )}
+                    {loadingStep >= 2 && (
+                      <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 2 ? 'opacity-100' : 'opacity-70'}`}>
+                        {loadingStep > 2 ? '✓' : '○'} Analyzing mathematical structure
+                      </div>
+                    )}
+                    {loadingStep >= 3 && (
+                      <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 3 ? 'opacity-100' : 'opacity-70'}`}>
+                        {loadingStep > 3 ? '✓' : '○'} Executing AI computation engine
+                      </div>
+                    )}
+                    {loadingStep >= 4 && (
+                      <div className={`flex items-center gap-2 transition-all duration-300`}>
+                        {loadingStep > 4 ? '✓' : '○'} Validating results
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1001,10 +1026,11 @@ export default function Home() {
                   <button 
                     className="btn btn-outline btn-warning btn-sm w-full"
                     onClick={() => setDisputeMode(true)}
-                    disabled={loading || supervisorLevel >= 1}
+                    disabled={loading || supervisorLevel >= 1 || disputeCount >= 3}
                   >
                     Dispute This Answer
                     {disputeCount === 2 && <span className="badge badge-error badge-xs ml-2">Last chance!</span>}
+                    {disputeCount >= 3 && <span className="badge badge-neutral badge-xs ml-2">Max disputes reached</span>}
                   </button>
                 )}
 
