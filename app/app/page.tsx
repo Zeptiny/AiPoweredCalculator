@@ -161,25 +161,22 @@ interface CalculationResult {
   };
 }
 
-// Helper function to generate profile picture with initials and random color
-const getAgentProfile = (name: string) => {
+// Helper function to generate profile picture with initials and unique color
+const getAgentProfile = (name: string, index: number, totalAgents: number) => {
   // Extract initials (first letter of first two words)
   const words = name.split(' ');
   const initials = words.slice(0, 2).map(w => w[0]).join('').toUpperCase();
   
-  // Generate a consistent color based on name
+  // All available colors
   const colors = [
     'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
     'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
     'bg-orange-500', 'bg-cyan-500', 'bg-lime-500', 'bg-amber-500'
   ];
   
-  // Use name hash to consistently select a color
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colorIndex = Math.abs(hash) % colors.length;
+  // Ensure unique colors by using index modulo colors length
+  // This guarantees no duplicate colors as long as we have <= 12 agents
+  const colorIndex = index % colors.length;
   
   return { initials, color: colors[colorIndex] };
 };
@@ -1970,8 +1967,8 @@ export default function Home() {
                   <div className="space-y-4">
                     <h3 className="text-xl font-bold text-center mb-6">Council Members</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {councilData.agents.map((agent) => {
-                        const profile = getAgentProfile(agent.name);
+                      {councilData.agents.map((agent, index) => {
+                        const profile = getAgentProfile(agent.name, index, councilData.agents?.length || 0);
                         return (
                           <div key={agent.id} className="card bg-base-300 animate-fade-in">
                             <div className="card-body p-4">
@@ -2010,7 +2007,9 @@ export default function Home() {
                       <div key={round.roundNumber} className="space-y-3">
                         <div className="divider">Round {round.roundNumber}</div>
                         {round.statements.map((statement, idx) => {
-                          const profile = getAgentProfile(statement.agentName);
+                          // Find the agent index by matching the name
+                          const agentIndex = councilData.agents?.findIndex(a => a.name === statement.agentName) ?? 0;
+                          const profile = getAgentProfile(statement.agentName, agentIndex, councilData.agents?.length || 0);
                           return (
                             <div key={idx} className="card bg-base-300">
                               <div className="card-body p-4">
@@ -2057,7 +2056,9 @@ export default function Home() {
                     <h3 className="text-xl font-bold text-center mb-6">Council Votes</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {councilData.votes.map((vote, index) => {
-                        const profile = getAgentProfile(vote.agentName);
+                        // Find the agent index by matching the name
+                        const agentIndex = councilData.agents?.findIndex(a => a.name === vote.agentName) ?? 0;
+                        const profile = getAgentProfile(vote.agentName, agentIndex, councilData.agents?.length || 0);
                         return (
                           <div 
                             key={vote.agentId}
