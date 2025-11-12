@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
 
         // Phase 1: Select agents
         const agentCount = Math.floor(Math.random() * 2) + 5; // 5 or 6
-        const agents = selectAgents(agentCount);
+        const agents = await selectAgents(agentCount);
         const sessionId = `council_${Date.now()}`;
         
         send('agents_selected', { 
