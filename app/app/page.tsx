@@ -431,7 +431,22 @@ export default function Home() {
     if (!currentResult || !supervisorConcern.trim()) return;
 
     setLoadingSupervisor(true);
+    setLoadingStep(0);
     setError('');
+
+    // Sequential loading steps for supervisor review
+    const steps = [
+      { step: 1, delay: 400 },
+      { step: 2, delay: 800 },
+      { step: 3, delay: 1200 },
+      { step: 4, delay: 1600 },
+    ];
+
+    const timeouts: NodeJS.Timeout[] = [];
+    steps.forEach(({ step, delay }) => {
+      const timeout = setTimeout(() => setLoadingStep(step), delay);
+      timeouts.push(timeout);
+    });
 
     try {
       const response = await fetch('/api/supervisor', {
@@ -912,11 +927,33 @@ export default function Home() {
                               </div>
                             )}
                           </div>
+                          
+                          {/* Processing Status for Dispute */}
                           {dispute.metadata && (
-                            <div className="text-xs opacity-50 mt-2">
-                              {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
+                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
+                              <div className="text-xs font-semibold mb-2 opacity-75">
+                                Processing Details
+                              </div>
+                              <div className="text-xs space-y-1">
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Parsing expression syntax
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Analyzing mathematical structure
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Executing AI computation engine
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Validating results
+                                </div>
+                              </div>
+                              <div className="text-xs opacity-50 mt-2">
+                                {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
+                              </div>
                             </div>
                           )}
+                          
                           {/* Safety Classification for Dispute */}
                           {dispute.safety && (
                             <div className="mt-3 p-2 bg-base-100 rounded-lg">
@@ -1020,6 +1057,38 @@ export default function Home() {
                           {loading ? <span className="loading loading-spinner loading-sm"></span> : 'Submit Dispute'}
                         </button>
                       </div>
+                      
+                      {/* Loading state inside dispute card */}
+                      {loading && (
+                        <div className="mt-3 p-3 bg-base-100 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="loading loading-spinner loading-sm"></span>
+                            <span className="text-xs font-semibold">Processing Dispute...</span>
+                          </div>
+                          <div className="text-xs space-y-1">
+                            {loadingStep >= 1 && (
+                              <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 1 ? 'opacity-100' : 'opacity-70'}`}>
+                                {loadingStep > 1 ? '✓' : '○'} Parsing expression syntax
+                              </div>
+                            )}
+                            {loadingStep >= 2 && (
+                              <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 2 ? 'opacity-100' : 'opacity-70'}`}>
+                                {loadingStep > 2 ? '✓' : '○'} Analyzing mathematical structure
+                              </div>
+                            )}
+                            {loadingStep >= 3 && (
+                              <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 3 ? 'opacity-100' : 'opacity-70'}`}>
+                                {loadingStep > 3 ? '✓' : '○'} Executing AI computation engine
+                              </div>
+                            )}
+                            {loadingStep >= 4 && (
+                              <div className={`flex items-center gap-2 transition-all duration-300`}>
+                                {loadingStep > 4 ? '✓' : '○'} Validating results
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1094,9 +1163,29 @@ export default function Home() {
                             )}
                           </div>
 
+                          {/* Processing Status for Supervisor */}
                           {review.metadata && (
-                            <div className="text-xs opacity-50 mt-2">
-                              {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
+                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
+                              <div className="text-xs font-semibold mb-2 opacity-75">
+                                Processing Details
+                              </div>
+                              <div className="text-xs space-y-1">
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Reviewing dispute history
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Analyzing mathematical principles
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Applying {review.supervisorTitle} protocols
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100">
+                                  ✓ Formulating authoritative judgment
+                                </div>
+                              </div>
+                              <div className="text-xs opacity-50 mt-2">
+                                {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
+                              </div>
                             </div>
                           )}
 
@@ -1207,6 +1296,38 @@ export default function Home() {
                             )}
                           </button>
                         </div>
+                        
+                        {/* Loading state inside supervisor request card */}
+                        {loadingSupervisor && (
+                          <div className="mt-3 p-3 bg-base-100 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="loading loading-spinner loading-sm"></span>
+                              <span className="text-xs font-semibold">Supervisor Review in Progress...</span>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              {loadingStep >= 1 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 1 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 1 ? '✓' : '○'} Reviewing dispute history
+                                </div>
+                              )}
+                              {loadingStep >= 2 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 2 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 2 ? '✓' : '○'} Analyzing mathematical principles
+                                </div>
+                              )}
+                              {loadingStep >= 3 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 3 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 3 ? '✓' : '○'} Applying supervisor protocols
+                                </div>
+                              )}
+                              {loadingStep >= 4 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300`}>
+                                  {loadingStep > 4 ? '✓' : '○'} Formulating authoritative judgment
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1262,6 +1383,38 @@ export default function Home() {
                             )}
                           </button>
                         </div>
+                        
+                        {/* Loading state inside supervisor escalation card */}
+                        {loadingSupervisor && (
+                          <div className="mt-3 p-3 bg-base-100 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="loading loading-spinner loading-sm"></span>
+                              <span className="text-xs font-semibold">Escalating to Principal Arbitrator...</span>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              {loadingStep >= 1 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 1 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 1 ? '✓' : '○'} Reviewing dispute history
+                                </div>
+                              )}
+                              {loadingStep >= 2 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 2 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 2 ? '✓' : '○'} Analyzing mathematical principles
+                                </div>
+                              )}
+                              {loadingStep >= 3 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 3 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 3 ? '✓' : '○'} Applying advanced supervisor protocols
+                                </div>
+                              )}
+                              {loadingStep >= 4 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300`}>
+                                  {loadingStep > 4 ? '✓' : '○'} Formulating authoritative judgment
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1317,6 +1470,38 @@ export default function Home() {
                             )}
                           </button>
                         </div>
+                        
+                        {/* Loading state inside final escalation card */}
+                        {loadingSupervisor && (
+                          <div className="mt-3 p-3 bg-base-100 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="loading loading-spinner loading-sm"></span>
+                              <span className="text-xs font-semibold">Escalating to CEMO (Final Decision)...</span>
+                            </div>
+                            <div className="text-xs space-y-1">
+                              {loadingStep >= 1 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 1 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 1 ? '✓' : '○'} Reviewing complete dispute history
+                                </div>
+                              )}
+                              {loadingStep >= 2 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 2 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 2 ? '✓' : '○'} Leveraging executive frameworks
+                                </div>
+                              )}
+                              {loadingStep >= 3 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300 ${loadingStep > 3 ? 'opacity-100' : 'opacity-70'}`}>
+                                  {loadingStep > 3 ? '✓' : '○'} Synergizing mathematical best practices
+                                </div>
+                              )}
+                              {loadingStep >= 4 && (
+                                <div className={`flex items-center gap-2 transition-all duration-300`}>
+                                  {loadingStep > 4 ? '✓' : '○'} Delivering mission-critical verdict
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
