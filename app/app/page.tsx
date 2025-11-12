@@ -566,11 +566,22 @@ export default function Home() {
               <input
                 type="text"
                 value={expression}
-                placeholder="Use buttons to build expression..."
+                placeholder="Type or use buttons to build expression..."
                 className="input input-lg input-primary w-full text-2xl font-mono text-right"
                 disabled={loading}
-                readOnly
-                onKeyDown={(e) => e.key === 'Enter' && handleCalculate()}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Allow only mathematical characters: numbers, operators, parentheses, functions, constants, and spaces
+                  const mathPattern = /^[0-9+\-*/().^,\sa-z]*$/i;
+                  if (mathPattern.test(value)) {
+                    setExpression(value);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCalculate();
+                  }
+                }}
               />
             </div>
 
@@ -603,7 +614,7 @@ export default function Home() {
                   key={btn.label}
                   onClick={() => setExpression(prev => prev + btn.value)}
                   disabled={loading}
-                  className="btn btn-sm btn-accent"
+                  className="btn btn-sm btn-secondary font-semibold hover:btn-accent transition-colors"
                 >
                   {btn.label}
                 </button>
@@ -617,7 +628,7 @@ export default function Home() {
                   key={constant.label}
                   onClick={() => setExpression(prev => prev + constant.value)}
                   disabled={loading}
-                  className="btn btn-sm btn-accent flex-1"
+                  className="btn btn-sm btn-secondary flex-1 font-bold text-lg hover:btn-accent transition-colors"
                 >
                   {constant.label}
                 </button>
@@ -702,7 +713,26 @@ export default function Home() {
                       </div>
                     )}
                     {/* Safety Classification for Initial Calculation */}
-                    {currentResult.safety && (
+                    {loadingSafety && !currentResult.safety ? (
+                      <div className="mt-3 p-2 bg-base-100 rounded-lg animate-pulse">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="skeleton h-3 w-32"></div>
+                          <span className="loading loading-spinner loading-xs"></span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div className="space-y-2">
+                            <div className="skeleton h-4 w-24"></div>
+                            <div className="skeleton h-3 w-full"></div>
+                            <div className="skeleton h-3 w-3/4"></div>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="skeleton h-4 w-24"></div>
+                            <div className="skeleton h-3 w-full"></div>
+                            <div className="skeleton h-3 w-3/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : currentResult.safety ? (
                       <div className="mt-3 p-2 bg-base-100 rounded-lg">
                         <div className="text-xs font-semibold mb-2 opacity-75">
                           Safety Classification
@@ -758,7 +788,7 @@ export default function Home() {
                           </div>
                         </div>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
