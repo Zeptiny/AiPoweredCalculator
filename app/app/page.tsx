@@ -131,7 +131,9 @@ interface CouncilResponse {
     roundsCompleted: number;
   };
   deliberationComplete?: boolean;
+  votingReady?: boolean;
   votingComplete?: boolean;
+  verdictReady?: boolean;
 }
 
 interface CalculationResult {
@@ -761,10 +763,11 @@ export default function Home() {
                   break;
 
                 case 'voting_started':
-                  setCouncilPhase('voting');
+                  // Don't auto-switch to voting phase - wait for user to click continue
                   setCouncilData(prev => ({
                     ...prev,
-                    votes: []
+                    votes: [],
+                    votingReady: true
                   }));
                   break;
 
@@ -781,11 +784,12 @@ export default function Home() {
                   break;
 
                 case 'verdict':
+                  // Don't auto-switch to verdict phase - store it but don't show yet
                   setCouncilData(prev => ({
                     ...prev,
-                    finalVerdict: data.verdict
+                    finalVerdict: data.verdict,
+                    verdictReady: true
                   }));
-                  setCouncilPhase('verdict');
                   break;
 
                 case 'complete':

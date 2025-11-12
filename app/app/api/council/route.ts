@@ -115,7 +115,7 @@ const AGENT_POOL: Omit<CouncilAgent, 'id' | 'name'>[] = [
 ];
 
 // Helper function to call OpenRouter API
-async function callOpenRouter(messages: ChatMessage[], temperature: number, model: string): Promise<string> {
+async function callOpenRouter(messages: ChatMessage[], temperature: number, model: string): Promise<{ content: string; tokens: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   
   if (!apiKey) {
@@ -142,8 +142,15 @@ async function callOpenRouter(messages: ChatMessage[], temperature: number, mode
     throw new Error(`OpenRouter API error: ${response.statusText}`);
   }
 
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content || '';
+  const data = await response.json() as { 
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { total_tokens?: number };
+  };
+  
+  return {
+    content: data.choices?.[0]?.message?.content || '',
+    tokens: data.usage?.total_tokens || 0
+  };
 }
 
 // Select random agents
@@ -279,9 +286,6 @@ export async function POST(request: NextRequest) {
           sessionId 
         });
 
-        // Wait longer for user to review council members
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         // Build context
         const context = buildContext(expression, initialResult, disputes, supervisorReviews);
 
@@ -306,18 +310,18 @@ export async function POST(request: NextRequest) {
                 allStatements.slice(-3)
               );
 
-              const statement = await callOpenRouter(
+              const response = await callOpenRouter(
                 prompt,
                 agent.temperature,
                 'meta-llama/llama-3.1-8b-instruct'
               );
 
-              totalTokens += 200; // Estimate
+              totalTokens += response.tokens;
 
               const agentStatement: AgentStatement = {
                 agentId: agent.id,
                 agentName: agent.name,
-                statement: statement.trim(),
+                statement: response.content.trim(),
                 timestamp: Date.now()
               };
 
@@ -325,7 +329,7 @@ export async function POST(request: NextRequest) {
               send('statement_complete', { statement: agentStatement });
 
               // Increased pause between agents for better readability
-              await new Promise(resolve => setTimeout(resolve, 1500));
+              await new Promise(resolve => setTimeout(resolve, 3000));
             } catch (error) {
               console.error(`Error getting statement from ${agent.name}:`, error);
               const fallback: AgentStatement = {
@@ -341,7 +345,7 @@ export async function POST(request: NextRequest) {
 
           send('round_complete', { round });
           // Longer pause between rounds
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 4000));
         }
 
         // Organize statements into rounds
@@ -359,7 +363,6 @@ export async function POST(request: NextRequest) {
 
         // Phase 3: Voting
         send('voting_started', {});
-        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const votes: AgentVote[] = [];
         for (const agent of agents) {
@@ -390,11 +393,11 @@ Respond in JSON format:
               'meta-llama/llama-3.1-8b-instruct'
             );
 
-            totalTokens += 150; // Estimate
+            totalTokens += voteResponse.tokens;
 
             let voteData;
             try {
-              voteData = JSON.parse(voteResponse);
+              voteData = JSON.parse(voteResponse.content);
             } catch {
               voteData = {
                 vote: initialResult,
@@ -412,7 +415,7 @@ Respond in JSON format:
             votes.push(vote);
             send('vote', { vote });
             // Increased pause between votes for better readability
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
           } catch (error) {
             console.error(`Error getting vote from ${agent.name}:`, error);
             const fallbackVote: AgentVote = {
@@ -430,8 +433,6 @@ Respond in JSON format:
         send('voting_complete', {});
 
         // Phase 4: Final Verdict
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
         try {
           const verdictPrompt: ChatMessage[] = [
             {
@@ -466,11 +467,11 @@ Respond in JSON format:
             'meta-llama/llama-3.3-70b-instruct'
           );
 
-          totalTokens += 300; // Estimate
+          totalTokens += verdictResponse.tokens;
 
           let verdict: FinalVerdict;
           try {
-            verdict = JSON.parse(verdictResponse);
+            verdict = JSON.parse(verdictResponse.content);
           } catch {
             verdict = {
               chairperson: 'Grand Chancellor of Mathematical Truth',
