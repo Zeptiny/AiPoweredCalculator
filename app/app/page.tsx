@@ -2122,6 +2122,17 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+
+                {/* Loading state when verdict phase but no data yet */}
+                {councilPhase === 'verdict' && !councilData.finalVerdict && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-center mb-6">Final Verdict</h3>
+                    <div className="text-center">
+                      <span className="loading loading-spinner loading-lg"></span>
+                      <p className="mt-4 opacity-75">Awaiting final verdict...</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
