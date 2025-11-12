@@ -82,6 +82,56 @@ interface SupervisorResponse {
   };
 }
 
+interface CouncilAgent {
+  id: string;
+  name: string;
+  archetype: string;
+  personality: string;
+  temperature: number;
+}
+
+interface AgentStatement {
+  agentId: string;
+  agentName: string;
+  statement: string;
+  timestamp: number;
+}
+
+interface DeliberationRound {
+  roundNumber: number;
+  statements: AgentStatement[];
+}
+
+interface AgentVote {
+  agentId: string;
+  agentName: string;
+  vote: string;
+  reasoning: string;
+}
+
+interface FinalVerdict {
+  chairperson: string;
+  announcement: string;
+  officialAnswer: string;
+  confidence: number;
+  closingStatement: string;
+}
+
+interface CouncilResponse {
+  sessionId: string;
+  agents: CouncilAgent[];
+  deliberation: DeliberationRound[];
+  votes: AgentVote[];
+  finalVerdict: FinalVerdict;
+  metadata: {
+    totalDuration: string;
+    totalTokens: number;
+    totalCost: number;
+    agentsUsed: number;
+    roundsCompleted: number;
+  };
+}
+
 interface CalculationResult {
   expression: string;
   explanation: string;
@@ -90,6 +140,7 @@ interface CalculationResult {
   conversationHistory?: ChatMessage[];
   disputes?: DisputeResponse[];
   supervisorReviews?: SupervisorResponse[];
+  councilDeliberation?: CouncilResponse;
   metadata?: {
     processingTime: string;
     model: string;
@@ -123,6 +174,15 @@ export default function Home() {
   const [supervisorLevel, setSupervisorLevel] = useState(0);
   const [supervisorConcern, setSupervisorConcern] = useState("");
   const [supervisorMode, setSupervisorMode] = useState(false);
+  
+  // Council state
+  const [showCouncilConfirmation, setShowCouncilConfirmation] = useState(0); // 0 = none, 1-3 = modal steps
+  const [councilConfirmChecked, setCouncilConfirmChecked] = useState(false);
+  const [showCouncil, setShowCouncil] = useState(false);
+  const [councilPhase, setCouncilPhase] = useState<'introduction' | 'deliberation' | 'voting' | 'verdict'>('introduction');
+  const [councilData, setCouncilData] = useState<Partial<CouncilResponse>>({});
+  const [streamingStatement, setStreamingStatement] = useState('');
+  const [showSupremeCourtJoke, setShowSupremeCourtJoke] = useState(false);
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -574,6 +634,175 @@ export default function Home() {
     } finally {
       setLoadingSupervisor(false);
     }
+  };
+
+  const handleCouncilStart = async () => {
+    if (!currentResult) return;
+
+    setShowCouncil(true);
+    setCouncilPhase('introduction');
+    setCouncilData({});
+    setStreamingStatement('');
+    setShowCouncilConfirmation(0);
+    setCouncilConfirmChecked(false);
+
+    try {
+      const response = await fetch('/api/council', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          expression: currentResult.expression,
+          initialResult: currentResult.result,
+          disputes: currentResult.disputes || [],
+          supervisorReviews: currentResult.supervisorReviews || []
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start council session');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              switch (data.type) {
+                case 'agents_selected':
+                  setCouncilData(prev => ({
+                    ...prev,
+                    agents: data.agents,
+                    sessionId: data.sessionId
+                  }));
+                  setTimeout(() => setCouncilPhase('deliberation'), 2000);
+                  break;
+
+                case 'round_start':
+                  // Round started
+                  break;
+
+                case 'statement_start':
+                  setStreamingStatement('');
+                  break;
+
+                case 'statement_complete':
+                  setCouncilData(prev => {
+                    const existingRounds = prev.deliberation || [];
+                    const currentRound = existingRounds[existingRounds.length - 1];
+                    
+                    if (currentRound) {
+                      currentRound.statements.push(data.statement);
+                      return {
+                        ...prev,
+                        deliberation: existingRounds
+                      };
+                    } else {
+                      return {
+                        ...prev,
+                        deliberation: [{
+                          roundNumber: 1,
+                          statements: [data.statement]
+                        }]
+                      };
+                    }
+                  });
+                  setStreamingStatement('');
+                  break;
+
+                case 'round_complete':
+                  // Round complete
+                  break;
+
+                case 'voting_started':
+                  setCouncilPhase('voting');
+                  setCouncilData(prev => ({
+                    ...prev,
+                    votes: []
+                  }));
+                  break;
+
+                case 'vote':
+                  setCouncilData(prev => ({
+                    ...prev,
+                    votes: [...(prev.votes || []), data.vote]
+                  }));
+                  break;
+
+                case 'verdict':
+                  setCouncilData(prev => ({
+                    ...prev,
+                    finalVerdict: data.verdict
+                  }));
+                  setCouncilPhase('verdict');
+                  break;
+
+                case 'complete':
+                  setCouncilData(data);
+                  
+                  // Update current result with council data
+                  setCurrentResult(prev => {
+                    if (!prev) return prev;
+                    return {
+                      ...prev,
+                      councilDeliberation: data
+                    };
+                  });
+
+                  // Update history
+                  setHistory(prev => {
+                    const index = prev.findIndex(item =>
+                      item.expression === currentResult.expression &&
+                      item.metadata?.timestamp === currentResult.metadata?.timestamp
+                    );
+
+                    if (index !== -1) {
+                      const newHistory = [...prev];
+                      newHistory[index] = {
+                        ...newHistory[index],
+                        councilDeliberation: data
+                      };
+                      return newHistory;
+                    }
+                    return prev;
+                  });
+                  break;
+
+                case 'error':
+                  setError(data.message || 'Council session failed');
+                  setShowCouncil(false);
+                  break;
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start council session');
+      setShowCouncil(false);
+    }
+  };
+
+  const closeCouncil = () => {
+    setShowCouncil(false);
+    setShowSupremeCourtJoke(false);
   };
 
   const loadFromHistory = (item: CalculationResult) => {
@@ -1491,10 +1720,331 @@ export default function Home() {
                     </button>
                   )
                 )}
+
+                {/* Council Button - appears after Level 3 (CEMO) with final decision */}
+                {supervisorLevel === 3 && 
+                 currentResult.supervisorReviews?.[2]?.isFinal && 
+                 !showCouncil && 
+                 !currentResult.councilDeliberation && (
+                  <button 
+                    className="btn btn-error btn-lg w-full mt-4 animate-pulse"
+                    onClick={() => setShowCouncilConfirmation(1)}
+                  >
+                    🏛️ SUMMON THE MATHEMATICAL COUNCIL
+                    <span className="badge badge-warning ml-2">FINAL OPTION</span>
+                  </button>
+                )}
+
+                {/* Council Deliberation Result */}
+                {currentResult.councilDeliberation && (
+                  <div className="card bg-purple-900/20 card-border mt-4">
+                    <div className="card-body p-4">
+                      <h3 className="font-bold text-sm opacity-75 flex items-center gap-2">
+                        🏛️ Mathematical Council Verdict
+                        <span className="badge badge-error badge-xs">FINAL & BINDING</span>
+                      </h3>
+                      <div className="divider my-2"></div>
+                      <div className="space-y-2">
+                        <div>
+                          <div className="font-bold text-xs opacity-75">Chairperson:</div>
+                          <p className="text-sm">{currentResult.councilDeliberation.finalVerdict.chairperson}</p>
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs opacity-75">Announcement:</div>
+                          <p className="text-sm italic">{currentResult.councilDeliberation.finalVerdict.announcement}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs opacity-75">Official Answer:</span>
+                          <span className="font-mono font-bold text-xl text-error">{currentResult.councilDeliberation.finalVerdict.officialAnswer}</span>
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs opacity-75">Closing Statement:</div>
+                          <p className="text-sm font-bold">{currentResult.councilDeliberation.finalVerdict.closingStatement}</p>
+                        </div>
+                      </div>
+                      <div className="text-xs opacity-50 mt-2">
+                        {currentResult.councilDeliberation.metadata.agentsUsed} agents • 
+                        {currentResult.councilDeliberation.metadata.roundsCompleted} rounds • 
+                        {currentResult.councilDeliberation.metadata.totalDuration}
+                      </div>
+                      <button 
+                        className="btn btn-sm btn-outline mt-3"
+                        onClick={() => setShowCouncil(true)}
+                      >
+                        View Full Deliberation
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Triple Confirmation Modals */}
+        {showCouncilConfirmation === 1 && (
+          <div className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg">Summon the Mathematical Council?</h3>
+              <p className="py-4">
+                The Council is a panel of 5-6 expert agents who will deliberate on this calculation.
+              </p>
+              <p className="text-sm opacity-75">
+                <span className="font-bold">Estimated runtime:</span> ~60-90 seconds
+              </p>
+              <div className="modal-action">
+                <button 
+                  className="btn btn-ghost"
+                  onClick={() => setShowCouncilConfirmation(0)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowCouncilConfirmation(2)}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showCouncilConfirmation === 2 && (
+          <div className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg">Are you absolutely certain?</h3>
+              <div className="alert alert-warning my-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <div className="font-bold">Warning</div>
+                  <div className="text-xs">This process cannot be stopped once started. The Council's decision will be final and binding.</div>
+                </div>
+              </div>
+              <p className="text-sm opacity-75">
+                <span className="font-bold">Cost notice:</span> This operation uses ~25-30 API calls
+              </p>
+              <div className="modal-action">
+                <button 
+                  className="btn btn-ghost"
+                  onClick={() => setShowCouncilConfirmation(1)}
+                >
+                  Go Back
+                </button>
+                <button 
+                  className="btn btn-warning"
+                  onClick={() => setShowCouncilConfirmation(3)}
+                >
+                  I'm Sure
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showCouncilConfirmation === 3 && (
+          <div className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="font-bold text-lg text-error">Final Confirmation</h3>
+              <div className="alert alert-error my-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <div className="font-bold">ABSOLUTE AND IRREVERSIBLE</div>
+                  <div className="text-xs">
+                    You are about to convene the Mathematical Council. Their verdict will be ABSOLUTE and IRREVERSIBLE.
+                  </div>
+                </div>
+              </div>
+              <label className="label cursor-pointer justify-start gap-3">
+                <input 
+                  type="checkbox" 
+                  className="checkbox checkbox-error"
+                  checked={councilConfirmChecked}
+                  onChange={(e) => setCouncilConfirmChecked(e.target.checked)}
+                />
+                <span className="label-text">I understand this decision is final</span>
+              </label>
+              <div className="modal-action">
+                <button 
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowCouncilConfirmation(2);
+                    setCouncilConfirmChecked(false);
+                  }}
+                >
+                  Abort
+                </button>
+                <button 
+                  className="btn btn-error"
+                  onClick={handleCouncilStart}
+                  disabled={!councilConfirmChecked}
+                >
+                  Summon Council
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Council Full-Screen Modal */}
+        {showCouncil && (
+          <div className="modal modal-open">
+            <div className="modal-box max-w-6xl h-[90vh] p-0">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-purple-900 to-indigo-900 p-6 text-white">
+                <h2 className="text-3xl font-bold">🏛️ THE MATHEMATICAL COUNCIL</h2>
+                {councilData.sessionId && (
+                  <p className="text-sm opacity-75 mt-2">Session #{councilData.sessionId}</p>
+                )}
+              </div>
+
+              {/* Main Content Area (Scrollable) */}
+              <div className="overflow-y-auto h-[calc(90vh-200px)] p-6">
+                {/* Phase 1: Agent Introduction */}
+                {councilPhase === 'introduction' && councilData.agents && (
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-bold text-center mb-6">Council Members</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {councilData.agents.map((agent) => (
+                        <div key={agent.id} className="card bg-base-300 animate-fade-in">
+                          <div className="card-body p-4">
+                            <h4 className="font-bold text-sm">{agent.name}</h4>
+                            <p className="text-xs opacity-75">{agent.archetype}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase 2: Deliberation */}
+                {councilPhase === 'deliberation' && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-center mb-6">Council Deliberation</h3>
+                    {councilData.deliberation?.map((round) => (
+                      <div key={round.roundNumber} className="space-y-3">
+                        <div className="divider">Round {round.roundNumber}</div>
+                        {round.statements.map((statement, idx) => (
+                          <div key={idx} className="card bg-base-300">
+                            <div className="card-body p-4">
+                              <div className="font-bold text-sm">{statement.agentName}</div>
+                              <p className="text-sm mt-2">{statement.statement}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    {streamingStatement && (
+                      <div className="card bg-base-300 animate-pulse">
+                        <div className="card-body p-4">
+                          <p className="text-sm">{streamingStatement}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Phase 3: Voting */}
+                {councilPhase === 'voting' && councilData.votes && (
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-bold text-center mb-6">Council Votes</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {councilData.votes.map((vote, index) => (
+                        <div 
+                          key={vote.agentId}
+                          className="card bg-base-300 animate-fade-in"
+                          style={{ animationDelay: `${index * 600}ms` }}
+                        >
+                          <div className="card-body p-4">
+                            <h3 className="font-bold text-sm">{vote.agentName}</h3>
+                            <div className="text-3xl font-mono font-bold text-primary mt-2">
+                              {vote.vote}
+                            </div>
+                            <p className="text-xs opacity-75 mt-2">{vote.reasoning}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Phase 4: Final Verdict */}
+                {councilPhase === 'verdict' && councilData.finalVerdict && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-center mb-6">Final Verdict</h3>
+                    <div className="card bg-gradient-to-r from-purple-900 to-indigo-900 text-white">
+                      <div className="card-body">
+                        <h4 className="text-lg font-bold">{councilData.finalVerdict.chairperson}</h4>
+                        <div className="divider"></div>
+                        <p className="text-base italic mb-4">{councilData.finalVerdict.announcement}</p>
+                        <div className="text-center my-6">
+                          <div className="text-sm opacity-75 mb-2">OFFICIAL ANSWER</div>
+                          <div className="text-6xl font-mono font-bold">{councilData.finalVerdict.officialAnswer}</div>
+                        </div>
+                        <div className="alert alert-warning mt-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <span className="text-sm font-bold">{councilData.finalVerdict.closingStatement}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Supreme Court Easter Egg */}
+                    <div className="text-center">
+                      <button 
+                        className="btn btn-ghost btn-sm opacity-50 hover:opacity-100"
+                        onClick={() => setShowSupremeCourtJoke(true)}
+                      >
+                        <span className="text-xs">Appeal to Supreme Court?</span>
+                      </button>
+                    </div>
+
+                    {showSupremeCourtJoke && (
+                      <div className="alert alert-warning animate-bounce">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div>
+                          <h4 className="font-bold">Appeal Denied</h4>
+                          <p className="text-xs">
+                            The Supreme Court of Mathematics has declined to hear this case. 
+                            The Council's decision stands as FINAL and BINDING for all eternity.
+                            <br />
+                            <span className="italic">(Also, we made that court up. It doesn't exist.)</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t p-4 bg-base-200">
+                <div className="flex justify-between items-center">
+                  <div className="text-xs opacity-75">
+                    {councilData.metadata && (
+                      <>
+                        Tokens: {councilData.metadata.totalTokens || 0} | 
+                        Duration: {councilData.metadata.totalDuration || '0s'}
+                      </>
+                    )}
+                  </div>
+                  {councilPhase === 'verdict' && (
+                    <button className="btn btn-sm btn-primary" onClick={closeCouncil}>
+                      Acknowledge Verdict
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* History Sidebar */}
         {showHistory && (
