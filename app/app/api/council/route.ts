@@ -279,7 +279,8 @@ export async function POST(request: NextRequest) {
           sessionId 
         });
 
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Pause for introduction
+        // Wait longer for user to review council members
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Build context
         const context = buildContext(expression, initialResult, disputes, supervisorReviews);
@@ -323,7 +324,8 @@ export async function POST(request: NextRequest) {
               allStatements.push(agentStatement);
               send('statement_complete', { statement: agentStatement });
 
-              await new Promise(resolve => setTimeout(resolve, 800)); // Pause between agents
+              // Increased pause between agents for better readability
+              await new Promise(resolve => setTimeout(resolve, 1500));
             } catch (error) {
               console.error(`Error getting statement from ${agent.name}:`, error);
               const fallback: AgentStatement = {
@@ -338,7 +340,8 @@ export async function POST(request: NextRequest) {
           }
 
           send('round_complete', { round });
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Pause between rounds
+          // Longer pause between rounds
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
         // Organize statements into rounds
@@ -351,9 +354,12 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Signal deliberation is complete - wait for user to continue
+        send('deliberation_complete', {});
+
         // Phase 3: Voting
         send('voting_started', {});
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const votes: AgentVote[] = [];
         for (const agent of agents) {
@@ -405,7 +411,8 @@ Respond in JSON format:
 
             votes.push(vote);
             send('vote', { vote });
-            await new Promise(resolve => setTimeout(resolve, 600));
+            // Increased pause between votes for better readability
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } catch (error) {
             console.error(`Error getting vote from ${agent.name}:`, error);
             const fallbackVote: AgentVote = {
@@ -418,6 +425,9 @@ Respond in JSON format:
             send('vote', { vote: fallbackVote });
           }
         }
+
+        // Signal voting is complete - wait for user to continue
+        send('voting_complete', {});
 
         // Phase 4: Final Verdict
         await new Promise(resolve => setTimeout(resolve, 1500));
