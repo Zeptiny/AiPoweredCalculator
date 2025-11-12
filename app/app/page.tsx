@@ -2197,6 +2197,11 @@ export default function Home() {
                                 Supervisor
                               </div>
                             )}
+                            {item.councilDeliberation && (
+                              <div className="badge badge-error badge-sm">
+                                🏛️ Council
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-xs opacity-75">
@@ -2284,6 +2289,31 @@ export default function Home() {
                                       )}
                                     </div>
                                   ))}
+                                </>
+                              )}
+                              
+                              {/* Council Deliberation in History */}
+                              {item.councilDeliberation && (
+                                <>
+                                  <div className="divider my-2"></div>
+                                  <div className="text-xs font-bold opacity-75 mb-2">🏛️ Mathematical Council:</div>
+                                  <div className="bg-purple-900/20 p-2 rounded space-y-1">
+                                    <div className="text-xs font-bold">{item.councilDeliberation.finalVerdict.chairperson}</div>
+                                    <div className="text-xs">
+                                      <span className="opacity-75">Official Answer:</span>{' '}
+                                      <span className="font-mono font-bold text-error">{item.councilDeliberation.finalVerdict.officialAnswer}</span>
+                                    </div>
+                                    <div className="text-xs opacity-75 italic">
+                                      "{item.councilDeliberation.finalVerdict.announcement}"
+                                    </div>
+                                    {item.councilDeliberation.metadata && (
+                                      <div className="text-xs opacity-50">
+                                        {item.councilDeliberation.metadata.agentsUsed} agents • 
+                                        {item.councilDeliberation.metadata.roundsCompleted} rounds • 
+                                        {item.councilDeliberation.metadata.totalTokens} tokens
+                                      </div>
+                                    )}
+                                  </div>
                                 </>
                               )}
                             </div>
