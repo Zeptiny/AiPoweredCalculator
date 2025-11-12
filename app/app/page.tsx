@@ -573,7 +573,7 @@ export default function Home() {
         throw new Error('Failed to get supervisor review');
       }
 
-      // Run safety check for supervisor review
+      // Run safety check for supervisor review (async, updates state when complete)
       fetch('/api/safety-check', {
         method: 'POST',
         headers: {
@@ -588,22 +588,26 @@ export default function Home() {
         .then((safetyData) => {
           // Update the supervisor review with safety info
           const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
-          const updatedReview: SupervisorResponse = { 
-            ...data, 
-            safety: typedSafetyData.safety ? {
-              input: typedSafetyData.safety.input,
-              output: typedSafetyData.safety.output || typedSafetyData.safety.input
-            } : undefined
-          };
           
           setCurrentResult(prev => {
             if (!prev) return prev;
+            
+            const reviewsWithoutLast = (prev.supervisorReviews || []).slice(0, -1);
+            const lastReview = prev.supervisorReviews?.[prev.supervisorReviews.length - 1];
+            
+            if (!lastReview) return prev;
+            
+            const updatedReview: SupervisorResponse = { 
+              ...lastReview, 
+              safety: typedSafetyData.safety ? {
+                input: typedSafetyData.safety.input,
+                output: typedSafetyData.safety.output || typedSafetyData.safety.input
+              } : undefined
+            };
+            
             const updatedResult: CalculationResult = {
               ...prev,
-              supervisorReviews: [
-                ...(prev.supervisorReviews || []).slice(0, -1),
-                updatedReview
-              ]
+              supervisorReviews: [...reviewsWithoutLast, updatedReview]
             };
             
             // Update history with safety info
@@ -626,7 +630,7 @@ export default function Home() {
         })
         .catch(err => console.error('Safety check failed:', err));
 
-      // Update current result with supervisor review
+      // Update current result with supervisor review (without safety initially)
       const updatedResult: CalculationResult = {
         ...currentResult,
         supervisorReviews: [...(currentResult.supervisorReviews || []), data]
