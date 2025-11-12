@@ -153,16 +153,64 @@ async function callOpenRouter(messages: ChatMessage[], temperature: number, mode
   };
 }
 
-// Select random agents
-function selectAgents(count: number): CouncilAgent[] {
+// Select random agents and generate their names using AI
+async function selectAgents(count: number): Promise<CouncilAgent[]> {
   const shuffled = [...AGENT_POOL].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, count);
   
-  return selected.map((agent, index) => ({
-    ...agent,
-    id: `agent_${Date.now()}_${index}`,
-    name: agent.nameOptions[Math.floor(Math.random() * agent.nameOptions.length)]
-  }));
+  const agents: CouncilAgent[] = [];
+  
+  for (let i = 0; i < selected.length; i++) {
+    const agent = selected[i];
+    
+    try {
+      // Generate name using AI based on archetype
+      const namePrompt: ChatMessage[] = [
+        {
+          role: 'system',
+          content: 'You are a creative name generator for mathematical council members.'
+        },
+        {
+          role: 'user',
+          content: `Generate a single unique and fitting name for a Mathematical Council member with this archetype: "${agent.archetype}".
+
+Description: ${agent.personality}
+
+The name should:
+- Be memorable and fit the character's personality
+- Sound authoritative yet quirky
+- Be 2-4 words maximum
+- NOT be one of these already used names: ${agent.nameOptions.join(', ')}
+
+Respond with ONLY the name, nothing else.`
+        }
+      ];
+      
+      const response = await callOpenRouter(
+        namePrompt,
+        0.9,
+        'meta-llama/llama-3.1-8b-instruct'
+      );
+      
+      const generatedName = response.content.trim().replace(/["']/g, '');
+      
+      agents.push({
+        ...agent,
+        id: `agent_${Date.now()}_${i}`,
+        name: generatedName || agent.nameOptions[0] // Fallback to first option if generation fails
+      });
+    } catch (error) {
+      console.error(`Error generating name for ${agent.archetype}:`, error);
+      // Fallback to random name from options
+      agents.push({
+        ...agent,
+        id: `agent_${Date.now()}_${i}`,
+        name: agent.nameOptions[Math.floor(Math.random() * agent.nameOptions.length)]
+      });
+    }
+  }
+  
+  return agents;
 }
 
 // Build context summary
@@ -198,12 +246,12 @@ function buildAgentPrompt(
   agent: CouncilAgent,
   context: string,
   round: number,
-  recentStatements: AgentStatement[]
+  allStatements: AgentStatement[]
 ): ChatMessage[] {
   let recentDiscussion = '';
-  if (recentStatements.length > 0) {
-    recentDiscussion = '\n\nRecent Council Discussion:\n';
-    recentStatements.forEach(s => {
+  if (allStatements.length > 0) {
+    recentDiscussion = '\n\nPrevious Council Discussion:\n';
+    allStatements.forEach(s => {
       recentDiscussion += `${s.agentName}: "${s.statement}"\n`;
     });
   }
@@ -307,7 +355,7 @@ export async function POST(request: NextRequest) {
                 agent,
                 context,
                 round,
-                allStatements.slice(-3)
+                allStatements
               );
 
               const response = await callOpenRouter(

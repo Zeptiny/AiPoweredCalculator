@@ -209,7 +209,6 @@ export default function Home() {
   const [councilPhase, setCouncilPhase] = useState<'introduction' | 'deliberation' | 'voting' | 'verdict'>('introduction');
   const [councilData, setCouncilData] = useState<Partial<CouncilResponse>>({});
   const [streamingStatement, setStreamingStatement] = useState('');
-  const [showSupremeCourtJoke, setShowSupremeCourtJoke] = useState(false);
   const [councilInProgress, setCouncilInProgress] = useState(false);
 
   const buttons = [
@@ -855,7 +854,6 @@ export default function Home() {
 
   const closeCouncil = () => {
     setShowCouncil(false);
-    setShowSupremeCourtJoke(false);
   };
 
   const loadFromHistory = (item: CalculationResult) => {
@@ -1783,7 +1781,7 @@ export default function Home() {
                     className="btn btn-error btn-lg w-full mt-4 animate-pulse"
                     onClick={() => setShowCouncilConfirmation(1)}
                   >
-                    🏛️ SUMMON THE MATHEMATICAL COUNCIL
+                    SUMMON THE MATHEMATICAL COUNCIL
                     <span className="badge badge-warning ml-2">FINAL OPTION</span>
                   </button>
                 )}
@@ -1793,7 +1791,7 @@ export default function Home() {
                   <div className="card bg-purple-900/20 card-border mt-4">
                     <div className="card-body p-4">
                       <h3 className="font-bold text-sm opacity-75 flex items-center gap-2">
-                        🏛️ Mathematical Council Verdict
+                        Mathematical Council Verdict
                         <span className="badge badge-error badge-xs">FINAL & BINDING</span>
                       </h3>
                       <div className="divider my-2"></div>
@@ -1822,7 +1820,13 @@ export default function Home() {
                       </div>
                       <button 
                         className="btn btn-sm btn-outline mt-3"
-                        onClick={() => setShowCouncil(true)}
+                        onClick={() => {
+                          if (currentResult.councilDeliberation) {
+                            setCouncilData(currentResult.councilDeliberation);
+                            setCouncilPhase('introduction');
+                            setShowCouncil(true);
+                          }
+                        }}
                       >
                         View Full Deliberation
                       </button>
@@ -1949,7 +1953,7 @@ export default function Home() {
             <div className="modal-box max-w-6xl h-[90vh] p-0">
               {/* Header */}
               <div className="bg-gradient-to-r from-purple-900 to-indigo-900 p-6 text-white">
-                <h2 className="text-3xl font-bold">🏛️ THE MATHEMATICAL COUNCIL</h2>
+                <h2 className="text-3xl font-bold">THE MATHEMATICAL COUNCIL</h2>
                 {councilData.sessionId && (
                   <p className="text-sm opacity-75 mt-2">Session #{councilData.sessionId}</p>
                 )}
@@ -2053,8 +2057,11 @@ export default function Home() {
                         return (
                           <div 
                             key={vote.agentId}
-                            className="card bg-base-300 animate-fade-in"
-                            style={{ animationDelay: `${index * 1000}ms` }}
+                            className="card bg-base-300 opacity-0 animate-fade-in"
+                            style={{ 
+                              animationDelay: `${index * 1000}ms`,
+                              animationFillMode: 'forwards'
+                            }}
                           >
                             <div className="card-body p-4">
                               <div className="flex items-center gap-3 mb-2">
@@ -2108,33 +2115,6 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-
-                    {/* Supreme Court Easter Egg */}
-                    <div className="text-center">
-                      <button 
-                        className="btn btn-ghost btn-sm opacity-50 hover:opacity-100"
-                        onClick={() => setShowSupremeCourtJoke(true)}
-                      >
-                        <span className="text-xs">Appeal to Supreme Court?</span>
-                      </button>
-                    </div>
-
-                    {showSupremeCourtJoke && (
-                      <div className="alert alert-warning animate-bounce">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <div>
-                          <h4 className="font-bold">Appeal Denied</h4>
-                          <p className="text-xs">
-                            The Supreme Court of Mathematics has declined to hear this case. 
-                            The Council's decision stands as FINAL and BINDING for all eternity.
-                            <br />
-                            <span className="italic">(Also, we made that court up. It doesn't exist.)</span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -2203,7 +2183,7 @@ export default function Home() {
                             )}
                             {item.councilDeliberation && (
                               <div className="badge badge-error badge-sm">
-                                🏛️ Council
+                                Council
                               </div>
                             )}
                           </div>
@@ -2300,7 +2280,7 @@ export default function Home() {
                               {item.councilDeliberation && (
                                 <>
                                   <div className="divider my-2"></div>
-                                  <div className="text-xs font-bold opacity-75 mb-2">🏛️ Mathematical Council:</div>
+                                  <div className="text-xs font-bold opacity-75 mb-2">Mathematical Council:</div>
                                   <div className="bg-purple-900/20 p-2 rounded space-y-1">
                                     <div className="text-xs font-bold">{item.councilDeliberation.finalVerdict.chairperson}</div>
                                     <div className="text-xs">
