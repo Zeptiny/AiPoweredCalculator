@@ -855,6 +855,9 @@ export default function Home() {
 
   const closeCouncil = () => {
     setShowCouncil(false);
+    setCouncilInProgress(false);
+    // Reset to introduction phase for next time
+    setCouncilPhase('introduction');
   };
 
   const loadFromHistory = (item: CalculationResult) => {
