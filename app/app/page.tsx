@@ -408,10 +408,27 @@ export default function Home() {
                   }
                 };
               }
-              return {
+              const updatedResult = {
                 ...prev,
                 disputes: updatedDisputes
               };
+              
+              // Also update history with the safety info
+              setHistory(prevHistory => {
+                const index = prevHistory.findIndex(item => 
+                  item.expression === prev.expression && 
+                  item.metadata?.timestamp === prev.metadata?.timestamp
+                );
+                
+                if (index !== -1) {
+                  const newHistory = [...prevHistory];
+                  newHistory[index] = updatedResult;
+                  return newHistory;
+                }
+                return prevHistory;
+              });
+              
+              return updatedResult;
             });
           }
           setLoadingSafety(false);
@@ -928,29 +945,9 @@ export default function Home() {
                             )}
                           </div>
                           
-                          {/* Processing Status for Dispute */}
                           {dispute.metadata && (
-                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
-                              <div className="text-xs font-semibold mb-2 opacity-75">
-                                Processing Details
-                              </div>
-                              <div className="text-xs space-y-1">
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Parsing expression syntax
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Analyzing mathematical structure
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Executing AI computation engine
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Validating results
-                                </div>
-                              </div>
-                              <div className="text-xs opacity-50 mt-2">
-                                {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
-                              </div>
+                            <div className="text-xs opacity-50 mt-2">
+                              {dispute.metadata.usage.totalTokens} tokens • {dispute.metadata.processingTime}
                             </div>
                           )}
                           
@@ -1163,29 +1160,9 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* Processing Status for Supervisor */}
                           {review.metadata && (
-                            <div className="mt-3 p-2 bg-base-100 rounded-lg">
-                              <div className="text-xs font-semibold mb-2 opacity-75">
-                                Processing Details
-                              </div>
-                              <div className="text-xs space-y-1">
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Reviewing dispute history
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Analyzing mathematical principles
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Applying {review.supervisorTitle} protocols
-                                </div>
-                                <div className="flex items-center gap-2 opacity-100">
-                                  ✓ Formulating authoritative judgment
-                                </div>
-                              </div>
-                              <div className="text-xs opacity-50 mt-2">
-                                {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
-                              </div>
+                            <div className="text-xs opacity-50 mt-2">
+                              {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
                             </div>
                           )}
 
