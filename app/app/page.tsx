@@ -130,6 +130,10 @@ interface CouncilResponse {
     agentsUsed: number;
     roundsCompleted: number;
   };
+  deliberationComplete?: boolean;
+  votingReady?: boolean;
+  votingComplete?: boolean;
+  verdictReady?: boolean;
 }
 
 interface CalculationResult {
@@ -157,6 +161,26 @@ interface CalculationResult {
   };
 }
 
+// Helper function to generate profile picture with initials and unique color
+const getAgentProfile = (name: string, index: number, totalAgents: number) => {
+  // Extract initials (first letter of first two words)
+  const words = name.split(' ');
+  const initials = words.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  
+  // All available colors
+  const colors = [
+    'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
+    'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
+    'bg-orange-500', 'bg-cyan-500', 'bg-lime-500', 'bg-amber-500'
+  ];
+  
+  // Ensure unique colors by using index modulo colors length
+  // This guarantees no duplicate colors as long as we have <= 12 agents
+  const colorIndex = index % colors.length;
+  
+  return { initials, color: colors[colorIndex] };
+};
+
 export default function Home() {
   const [expression, setExpression] = useState('');
   const [currentResult, setCurrentResult] = useState<CalculationResult | null>(null);
@@ -182,7 +206,7 @@ export default function Home() {
   const [councilPhase, setCouncilPhase] = useState<'introduction' | 'deliberation' | 'voting' | 'verdict'>('introduction');
   const [councilData, setCouncilData] = useState<Partial<CouncilResponse>>({});
   const [streamingStatement, setStreamingStatement] = useState('');
-  const [showSupremeCourtJoke, setShowSupremeCourtJoke] = useState(false);
+  const [councilInProgress, setCouncilInProgress] = useState(false);
 
   const buttons = [
     '7', '8', '9', '/', 
@@ -546,7 +570,7 @@ export default function Home() {
         throw new Error('Failed to get supervisor review');
       }
 
-      // Run safety check for supervisor review
+      // Run safety check for supervisor review (async, updates state when complete)
       fetch('/api/safety-check', {
         method: 'POST',
         headers: {
@@ -561,22 +585,26 @@ export default function Home() {
         .then((safetyData) => {
           // Update the supervisor review with safety info
           const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
-          const updatedReview: SupervisorResponse = { 
-            ...data, 
-            safety: typedSafetyData.safety ? {
-              input: typedSafetyData.safety.input,
-              output: typedSafetyData.safety.output || typedSafetyData.safety.input
-            } : undefined
-          };
           
           setCurrentResult(prev => {
             if (!prev) return prev;
+            
+            const reviewsWithoutLast = (prev.supervisorReviews || []).slice(0, -1);
+            const lastReview = prev.supervisorReviews?.[prev.supervisorReviews.length - 1];
+            
+            if (!lastReview) return prev;
+            
+            const updatedReview: SupervisorResponse = { 
+              ...lastReview, 
+              safety: typedSafetyData.safety ? {
+                input: typedSafetyData.safety.input,
+                output: typedSafetyData.safety.output || typedSafetyData.safety.input
+              } : undefined
+            };
+            
             const updatedResult: CalculationResult = {
               ...prev,
-              supervisorReviews: [
-                ...(prev.supervisorReviews || []).slice(0, -1),
-                updatedReview
-              ]
+              supervisorReviews: [...reviewsWithoutLast, updatedReview]
             };
             
             // Update history with safety info
@@ -599,7 +627,7 @@ export default function Home() {
         })
         .catch(err => console.error('Safety check failed:', err));
 
-      // Update current result with supervisor review
+      // Update current result with supervisor review (without safety initially)
       const updatedResult: CalculationResult = {
         ...currentResult,
         supervisorReviews: [...(currentResult.supervisorReviews || []), data]
@@ -637,7 +665,7 @@ export default function Home() {
   };
 
   const handleCouncilStart = async () => {
-    if (!currentResult) return;
+    if (!currentResult || councilInProgress) return;
 
     setShowCouncil(true);
     setCouncilPhase('introduction');
@@ -645,6 +673,7 @@ export default function Home() {
     setStreamingStatement('');
     setShowCouncilConfirmation(0);
     setCouncilConfirmChecked(false);
+    setCouncilInProgress(true);
 
     try {
       const response = await fetch('/api/council', {
@@ -690,7 +719,6 @@ export default function Home() {
                     agents: data.agents,
                     sessionId: data.sessionId
                   }));
-                  setTimeout(() => setCouncilPhase('deliberation'), 2000);
                   break;
 
                 case 'round_start':
@@ -729,11 +757,17 @@ export default function Home() {
                   // Round complete
                   break;
 
+                case 'deliberation_complete':
+                  // Set flag that deliberation is done
+                  setCouncilData(prev => ({ ...prev, deliberationComplete: true }));
+                  break;
+
                 case 'voting_started':
-                  setCouncilPhase('voting');
+                  // Don't auto-switch to voting phase - wait for user to click continue
                   setCouncilData(prev => ({
                     ...prev,
-                    votes: []
+                    votes: [],
+                    votingReady: true
                   }));
                   break;
 
@@ -744,12 +778,18 @@ export default function Home() {
                   }));
                   break;
 
+                case 'voting_complete':
+                  // Set flag that voting is done
+                  setCouncilData(prev => ({ ...prev, votingComplete: true }));
+                  break;
+
                 case 'verdict':
+                  // Don't auto-switch to verdict phase - store it but don't show yet
                   setCouncilData(prev => ({
                     ...prev,
-                    finalVerdict: data.verdict
+                    finalVerdict: data.verdict,
+                    verdictReady: true
                   }));
-                  setCouncilPhase('verdict');
                   break;
 
                 case 'complete':
@@ -786,6 +826,7 @@ export default function Home() {
                 case 'error':
                   setError(data.message || 'Council session failed');
                   setShowCouncil(false);
+                  setCouncilInProgress(false);
                   break;
               }
             } catch (e) {
@@ -797,12 +838,26 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start council session');
       setShowCouncil(false);
+      setCouncilInProgress(false);
+    }
+  };
+
+  const handleCouncilContinue = () => {
+    // Progress to next phase based on current phase
+    if (councilPhase === 'introduction') {
+      setCouncilPhase('deliberation');
+    } else if (councilPhase === 'deliberation') {
+      setCouncilPhase('voting');
+    } else if (councilPhase === 'voting') {
+      setCouncilPhase('verdict');
     }
   };
 
   const closeCouncil = () => {
     setShowCouncil(false);
-    setShowSupremeCourtJoke(false);
+    setCouncilInProgress(false);
+    // Reset to introduction phase for next time
+    setCouncilPhase('introduction');
   };
 
   const loadFromHistory = (item: CalculationResult) => {
@@ -1724,13 +1779,13 @@ export default function Home() {
                 {/* Council Button - appears after Level 3 (CEMO) with final decision */}
                 {supervisorLevel === 3 && 
                  currentResult.supervisorReviews?.[2]?.isFinal && 
-                 !showCouncil && 
-                 !currentResult.councilDeliberation && (
+                 !currentResult.councilDeliberation && 
+                 !councilInProgress && (
                   <button 
                     className="btn btn-error btn-lg w-full mt-4 animate-pulse"
                     onClick={() => setShowCouncilConfirmation(1)}
                   >
-                    🏛️ SUMMON THE MATHEMATICAL COUNCIL
+                    SUMMON THE MATHEMATICAL COUNCIL
                     <span className="badge badge-warning ml-2">FINAL OPTION</span>
                   </button>
                 )}
@@ -1740,7 +1795,7 @@ export default function Home() {
                   <div className="card bg-purple-900/20 card-border mt-4">
                     <div className="card-body p-4">
                       <h3 className="font-bold text-sm opacity-75 flex items-center gap-2">
-                        🏛️ Mathematical Council Verdict
+                        Mathematical Council Verdict
                         <span className="badge badge-error badge-xs">FINAL & BINDING</span>
                       </h3>
                       <div className="divider my-2"></div>
@@ -1769,7 +1824,13 @@ export default function Home() {
                       </div>
                       <button 
                         className="btn btn-sm btn-outline mt-3"
-                        onClick={() => setShowCouncil(true)}
+                        onClick={() => {
+                          if (currentResult.councilDeliberation) {
+                            setCouncilData(currentResult.councilDeliberation);
+                            setCouncilPhase('introduction');
+                            setShowCouncil(true);
+                          }
+                        }}
                       >
                         View Full Deliberation
                       </button>
@@ -1896,7 +1957,7 @@ export default function Home() {
             <div className="modal-box max-w-6xl h-[90vh] p-0">
               {/* Header */}
               <div className="bg-gradient-to-r from-purple-900 to-indigo-900 p-6 text-white">
-                <h2 className="text-3xl font-bold">🏛️ THE MATHEMATICAL COUNCIL</h2>
+                <h2 className="text-3xl font-bold">THE MATHEMATICAL COUNCIL</h2>
                 {councilData.sessionId && (
                   <p className="text-sm opacity-75 mt-2">Session #{councilData.sessionId}</p>
                 )}
@@ -1909,14 +1970,34 @@ export default function Home() {
                   <div className="space-y-4">
                     <h3 className="text-xl font-bold text-center mb-6">Council Members</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {councilData.agents.map((agent) => (
-                        <div key={agent.id} className="card bg-base-300 animate-fade-in">
-                          <div className="card-body p-4">
-                            <h4 className="font-bold text-sm">{agent.name}</h4>
-                            <p className="text-xs opacity-75">{agent.archetype}</p>
+                      {councilData.agents.map((agent, index) => {
+                        const profile = getAgentProfile(agent.name, index, councilData.agents?.length || 0);
+                        return (
+                          <div key={agent.id} className="card bg-base-300 animate-fade-in">
+                            <div className="card-body p-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`avatar placeholder`}>
+                                  <div className={`${profile.color} text-white rounded-full w-12 h-12 flex items-center justify-center font-bold`}>
+                                    <span>{profile.initials}</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <h4 className="font-bold text-sm">{agent.name}</h4>
+                                  <p className="text-xs opacity-75">{agent.archetype}</p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
+                    </div>
+                    <div className="text-center mt-6">
+                      <button 
+                        className="btn btn-primary btn-lg"
+                        onClick={handleCouncilContinue}
+                      >
+                        Begin Deliberation
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1928,14 +2009,28 @@ export default function Home() {
                     {councilData.deliberation?.map((round) => (
                       <div key={round.roundNumber} className="space-y-3">
                         <div className="divider">Round {round.roundNumber}</div>
-                        {round.statements.map((statement, idx) => (
-                          <div key={idx} className="card bg-base-300">
-                            <div className="card-body p-4">
-                              <div className="font-bold text-sm">{statement.agentName}</div>
-                              <p className="text-sm mt-2">{statement.statement}</p>
+                        {round.statements.map((statement, idx) => {
+                          // Find the agent index by matching the name
+                          const agentIndex = councilData.agents?.findIndex(a => a.name === statement.agentName) ?? 0;
+                          const profile = getAgentProfile(statement.agentName, agentIndex, councilData.agents?.length || 0);
+                          return (
+                            <div key={idx} className="card bg-base-300">
+                              <div className="card-body p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className={`avatar placeholder`}>
+                                    <div className={`${profile.color} text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-sm`}>
+                                      <span>{profile.initials}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-bold text-sm">{statement.agentName}</div>
+                                    <p className="text-sm mt-2">{statement.statement}</p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ))}
                     {streamingStatement && (
@@ -1943,6 +2038,16 @@ export default function Home() {
                         <div className="card-body p-4">
                           <p className="text-sm">{streamingStatement}</p>
                         </div>
+                      </div>
+                    )}
+                    {councilData.deliberationComplete && (
+                      <div className="text-center mt-6">
+                        <button 
+                          className="btn btn-primary btn-lg"
+                          onClick={handleCouncilContinue}
+                        >
+                          Proceed to Voting
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1953,22 +2058,47 @@ export default function Home() {
                   <div className="space-y-4">
                     <h3 className="text-xl font-bold text-center mb-6">Council Votes</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {councilData.votes.map((vote, index) => (
-                        <div 
-                          key={vote.agentId}
-                          className="card bg-base-300 animate-fade-in"
-                          style={{ animationDelay: `${index * 600}ms` }}
-                        >
-                          <div className="card-body p-4">
-                            <h3 className="font-bold text-sm">{vote.agentName}</h3>
-                            <div className="text-3xl font-mono font-bold text-primary mt-2">
-                              {vote.vote}
+                      {councilData.votes.map((vote, index) => {
+                        // Find the agent index by matching the name
+                        const agentIndex = councilData.agents?.findIndex(a => a.name === vote.agentName) ?? 0;
+                        const profile = getAgentProfile(vote.agentName, agentIndex, councilData.agents?.length || 0);
+                        return (
+                          <div 
+                            key={vote.agentId}
+                            className="card bg-base-300 opacity-0 animate-fade-in"
+                            style={{ 
+                              animationDelay: `${index * 1000}ms`,
+                              animationFillMode: 'forwards'
+                            }}
+                          >
+                            <div className="card-body p-4">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className={`avatar placeholder`}>
+                                  <div className={`${profile.color} text-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-sm`}>
+                                    <span>{profile.initials}</span>
+                                  </div>
+                                </div>
+                                <h3 className="font-bold text-sm">{vote.agentName}</h3>
+                              </div>
+                              <div className="text-3xl font-mono font-bold text-primary mt-2">
+                                {vote.vote}
+                              </div>
+                              <p className="text-xs opacity-75 mt-2">{vote.reasoning}</p>
                             </div>
-                            <p className="text-xs opacity-75 mt-2">{vote.reasoning}</p>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
+                    {councilData.votingComplete && (
+                      <div className="text-center mt-6">
+                        <button 
+                          className="btn btn-primary btn-lg"
+                          onClick={handleCouncilContinue}
+                        >
+                          Reveal Final Verdict
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1993,33 +2123,17 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    {/* Supreme Court Easter Egg */}
+                {/* Loading state when verdict phase but no data yet */}
+                {councilPhase === 'verdict' && !councilData.finalVerdict && (
+                  <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-center mb-6">Final Verdict</h3>
                     <div className="text-center">
-                      <button 
-                        className="btn btn-ghost btn-sm opacity-50 hover:opacity-100"
-                        onClick={() => setShowSupremeCourtJoke(true)}
-                      >
-                        <span className="text-xs">Appeal to Supreme Court?</span>
-                      </button>
+                      <span className="loading loading-spinner loading-lg"></span>
+                      <p className="mt-4 opacity-75">Awaiting final verdict...</p>
                     </div>
-
-                    {showSupremeCourtJoke && (
-                      <div className="alert alert-warning animate-bounce">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <div>
-                          <h4 className="font-bold">Appeal Denied</h4>
-                          <p className="text-xs">
-                            The Supreme Court of Mathematics has declined to hear this case. 
-                            The Council's decision stands as FINAL and BINDING for all eternity.
-                            <br />
-                            <span className="italic">(Also, we made that court up. It doesn't exist.)</span>
-                          </p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -2084,6 +2198,11 @@ export default function Home() {
                             {item.supervisorReviews && item.supervisorReviews.length > 0 && (
                               <div className={`badge ${item.supervisorReviews[item.supervisorReviews.length - 1].isFinal ? 'badge-error' : 'badge-info'} badge-sm`}>
                                 Supervisor
+                              </div>
+                            )}
+                            {item.councilDeliberation && (
+                              <div className="badge badge-error badge-sm">
+                                Council
                               </div>
                             )}
                           </div>
@@ -2173,6 +2292,31 @@ export default function Home() {
                                       )}
                                     </div>
                                   ))}
+                                </>
+                              )}
+                              
+                              {/* Council Deliberation in History */}
+                              {item.councilDeliberation && (
+                                <>
+                                  <div className="divider my-2"></div>
+                                  <div className="text-xs font-bold opacity-75 mb-2">Mathematical Council:</div>
+                                  <div className="bg-purple-900/20 p-2 rounded space-y-1">
+                                    <div className="text-xs font-bold">{item.councilDeliberation.finalVerdict.chairperson}</div>
+                                    <div className="text-xs">
+                                      <span className="opacity-75">Official Answer:</span>{' '}
+                                      <span className="font-mono font-bold text-error">{item.councilDeliberation.finalVerdict.officialAnswer}</span>
+                                    </div>
+                                    <div className="text-xs opacity-75 italic">
+                                      "{item.councilDeliberation.finalVerdict.announcement}"
+                                    </div>
+                                    {item.councilDeliberation.metadata && (
+                                      <div className="text-xs opacity-50">
+                                        {item.councilDeliberation.metadata.agentsUsed} agents • 
+                                        {item.councilDeliberation.metadata.roundsCompleted} rounds • 
+                                        {item.councilDeliberation.metadata.totalTokens} tokens
+                                      </div>
+                                    )}
+                                  </div>
                                 </>
                               )}
                             </div>

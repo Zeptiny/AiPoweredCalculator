@@ -115,7 +115,7 @@ const AGENT_POOL: Omit<CouncilAgent, 'id' | 'name'>[] = [
 ];
 
 // Helper function to call OpenRouter API
-async function callOpenRouter(messages: ChatMessage[], temperature: number, model: string): Promise<string> {
+async function callOpenRouter(messages: ChatMessage[], temperature: number, model: string): Promise<{ content: string; tokens: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   
   if (!apiKey) {
@@ -142,20 +142,75 @@ async function callOpenRouter(messages: ChatMessage[], temperature: number, mode
     throw new Error(`OpenRouter API error: ${response.statusText}`);
   }
 
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  return data.choices?.[0]?.message?.content || '';
+  const data = await response.json() as { 
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { total_tokens?: number };
+  };
+  
+  return {
+    content: data.choices?.[0]?.message?.content || '',
+    tokens: data.usage?.total_tokens || 0
+  };
 }
 
-// Select random agents
-function selectAgents(count: number): CouncilAgent[] {
+// Select random agents and generate their names using AI
+async function selectAgents(count: number): Promise<CouncilAgent[]> {
   const shuffled = [...AGENT_POOL].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, count);
   
-  return selected.map((agent, index) => ({
-    ...agent,
-    id: `agent_${Date.now()}_${index}`,
-    name: agent.nameOptions[Math.floor(Math.random() * agent.nameOptions.length)]
-  }));
+  const agents: CouncilAgent[] = [];
+  
+  for (let i = 0; i < selected.length; i++) {
+    const agent = selected[i];
+    
+    try {
+      // Generate name using AI based on archetype
+      const namePrompt: ChatMessage[] = [
+        {
+          role: 'system',
+          content: 'You are a creative name generator for mathematical council members.'
+        },
+        {
+          role: 'user',
+          content: `Generate a single unique and fitting name for a Mathematical Council member with this archetype: "${agent.archetype}".
+
+Description: ${agent.personality}
+
+The name should:
+- Be memorable and fit the character's personality
+- Sound authoritative yet quirky
+- Be 2-4 words maximum
+- NOT be one of these already used names: ${agent.nameOptions.join(', ')}
+
+Respond with ONLY the name, nothing else.`
+        }
+      ];
+      
+      const response = await callOpenRouter(
+        namePrompt,
+        0.9,
+        'meta-llama/llama-3.1-8b-instruct'
+      );
+      
+      const generatedName = response.content.trim().replace(/["']/g, '');
+      
+      agents.push({
+        ...agent,
+        id: `agent_${Date.now()}_${i}`,
+        name: generatedName || agent.nameOptions[0] // Fallback to first option if generation fails
+      });
+    } catch (error) {
+      console.error(`Error generating name for ${agent.archetype}:`, error);
+      // Fallback to random name from options
+      agents.push({
+        ...agent,
+        id: `agent_${Date.now()}_${i}`,
+        name: agent.nameOptions[Math.floor(Math.random() * agent.nameOptions.length)]
+      });
+    }
+  }
+  
+  return agents;
 }
 
 // Build context summary
@@ -191,12 +246,12 @@ function buildAgentPrompt(
   agent: CouncilAgent,
   context: string,
   round: number,
-  recentStatements: AgentStatement[]
+  allStatements: AgentStatement[]
 ): ChatMessage[] {
   let recentDiscussion = '';
-  if (recentStatements.length > 0) {
-    recentDiscussion = '\n\nRecent Council Discussion:\n';
-    recentStatements.forEach(s => {
+  if (allStatements.length > 0) {
+    recentDiscussion = '\n\nPrevious Council Discussion:\n';
+    allStatements.forEach(s => {
       recentDiscussion += `${s.agentName}: "${s.statement}"\n`;
     });
   }
@@ -267,7 +322,7 @@ export async function POST(request: NextRequest) {
 
         // Phase 1: Select agents
         const agentCount = Math.floor(Math.random() * 2) + 5; // 5 or 6
-        const agents = selectAgents(agentCount);
+        const agents = await selectAgents(agentCount);
         const sessionId = `council_${Date.now()}`;
         
         send('agents_selected', { 
@@ -278,8 +333,6 @@ export async function POST(request: NextRequest) {
           })),
           sessionId 
         });
-
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Pause for introduction
 
         // Build context
         const context = buildContext(expression, initialResult, disputes, supervisorReviews);
@@ -302,28 +355,29 @@ export async function POST(request: NextRequest) {
                 agent,
                 context,
                 round,
-                allStatements.slice(-3)
+                allStatements
               );
 
-              const statement = await callOpenRouter(
+              const response = await callOpenRouter(
                 prompt,
                 agent.temperature,
                 'meta-llama/llama-3.1-8b-instruct'
               );
 
-              totalTokens += 200; // Estimate
+              totalTokens += response.tokens;
 
               const agentStatement: AgentStatement = {
                 agentId: agent.id,
                 agentName: agent.name,
-                statement: statement.trim(),
+                statement: response.content.trim(),
                 timestamp: Date.now()
               };
 
               allStatements.push(agentStatement);
               send('statement_complete', { statement: agentStatement });
 
-              await new Promise(resolve => setTimeout(resolve, 800)); // Pause between agents
+              // Increased pause between agents for better readability
+              await new Promise(resolve => setTimeout(resolve, 3000));
             } catch (error) {
               console.error(`Error getting statement from ${agent.name}:`, error);
               const fallback: AgentStatement = {
@@ -338,7 +392,8 @@ export async function POST(request: NextRequest) {
           }
 
           send('round_complete', { round });
-          await new Promise(resolve => setTimeout(resolve, 1500)); // Pause between rounds
+          // Longer pause between rounds
+          await new Promise(resolve => setTimeout(resolve, 4000));
         }
 
         // Organize statements into rounds
@@ -351,9 +406,11 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Signal deliberation is complete - wait for user to continue
+        send('deliberation_complete', {});
+
         // Phase 3: Voting
         send('voting_started', {});
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
         const votes: AgentVote[] = [];
         for (const agent of agents) {
@@ -384,11 +441,11 @@ Respond in JSON format:
               'meta-llama/llama-3.1-8b-instruct'
             );
 
-            totalTokens += 150; // Estimate
+            totalTokens += voteResponse.tokens;
 
             let voteData;
             try {
-              voteData = JSON.parse(voteResponse);
+              voteData = JSON.parse(voteResponse.content);
             } catch {
               voteData = {
                 vote: initialResult,
@@ -405,7 +462,8 @@ Respond in JSON format:
 
             votes.push(vote);
             send('vote', { vote });
-            await new Promise(resolve => setTimeout(resolve, 600));
+            // Increased pause between votes for better readability
+            await new Promise(resolve => setTimeout(resolve, 2000));
           } catch (error) {
             console.error(`Error getting vote from ${agent.name}:`, error);
             const fallbackVote: AgentVote = {
@@ -419,9 +477,10 @@ Respond in JSON format:
           }
         }
 
-        // Phase 4: Final Verdict
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Signal voting is complete - wait for user to continue
+        send('voting_complete', {});
 
+        // Phase 4: Final Verdict
         try {
           const verdictPrompt: ChatMessage[] = [
             {
@@ -456,11 +515,11 @@ Respond in JSON format:
             'meta-llama/llama-3.3-70b-instruct'
           );
 
-          totalTokens += 300; // Estimate
+          totalTokens += verdictResponse.tokens;
 
           let verdict: FinalVerdict;
           try {
-            verdict = JSON.parse(verdictResponse);
+            verdict = JSON.parse(verdictResponse.content);
           } catch {
             verdict = {
               chairperson: 'Grand Chancellor of Mathematical Truth',
