@@ -118,13 +118,14 @@ export default function Home() {
         .then((safetyData) => {
           const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
           if (typedSafetyData.safety) {
+            const safety = typedSafetyData.safety;
             setCurrentResult((prev) => {
               if (!prev) return prev;
               return {
                 ...prev,
                 safety: {
-                  input: typedSafetyData.safety.input,
-                  output: typedSafetyData.safety.output || { isSafe: true, classification: 'N/A' },
+                  input: safety.input,
+                  output: safety.output || { isSafe: true, classification: 'N/A' },
                 },
               };
             });
@@ -236,6 +237,7 @@ export default function Home() {
         .then((safetyData) => {
           const typedSafetyData = safetyData as { safety?: { input: SafetyInfo; output: SafetyInfo | null } };
           if (typedSafetyData.safety) {
+            const safety = typedSafetyData.safety;
             setCurrentResult((prev) => {
               if (!prev || !prev.disputes) return prev;
               const updatedDisputes = [...prev.disputes];
@@ -244,8 +246,8 @@ export default function Home() {
                 updatedDisputes[lastDisputeIndex] = {
                   ...updatedDisputes[lastDisputeIndex],
                   safety: {
-                    input: typedSafetyData.safety.input,
-                    output: typedSafetyData.safety.output || { isSafe: true, classification: 'N/A' },
+                    input: safety.input,
+                    output: safety.output || { isSafe: true, classification: 'N/A' },
                   },
                 };
               }
