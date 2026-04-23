@@ -60,8 +60,8 @@ S1,S4,S10
 Respond now with your assessment.
 `;
 
-    // Call Llama Guard via OpenRouter
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    // Call Llama Guard via OpenRouter Responses API
+    const response = await fetch('https://openrouter.ai/api/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -71,14 +71,9 @@ Respond now with your assessment.
       },
       body: JSON.stringify({
         model: 'meta-llama/llama-guard-3-8b',
-        messages: [
-          {
-            role: 'user',
-            content: guardPrompt
-          }
-        ],
+        input: guardPrompt,
         temperature: 0.0,
-        max_tokens: 512
+        max_output_tokens: 512
       })
     });
 
@@ -92,13 +87,14 @@ Respond now with your assessment.
     }
 
     const data = await response.json() as {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
+      output?: Array<{
+        type: 'message';
+        role: 'assistant';
+        content: Array<{ type: 'output_text'; text: string }>;
       }>;
+      error?: { code: string; message: string };
     };
-    const guardResponse = data.choices?.[0]?.message?.content?.trim() || '';
+    const guardResponse = data.output?.[0]?.content?.[0]?.text?.trim() || '';
 
     console.log(`[Llama Guard] Raw response for ${role}:`, JSON.stringify(guardResponse));
 

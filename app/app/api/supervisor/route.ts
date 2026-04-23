@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       userConcern,
     );
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/responses', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -58,18 +58,12 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: supervisorLevel.model,
-        messages: [
-          {
-            role: 'system',
-            content: supervisorLevel.systemPrompt,
-          },
-          {
-            role: 'user',
-            content: userMessage,
-          },
-        ],
+        instructions: supervisorLevel.systemPrompt,
+        input: userMessage,
         temperature: 0.9,
-        response_format: { type: 'json_object' },
+        text: {
+          format: { type: 'json_object' },
+        },
       }),
     });
 
@@ -80,20 +74,26 @@ export async function POST(request: NextRequest) {
     }
 
     const data = (await response.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string;
-        };
+      output?: Array<{
+        type: 'message';
+        role: 'assistant';
+        content: Array<{ type: 'output_text'; text: string }>;
       }>;
       model?: string;
+      error?: { code: string; message: string };
       usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
+        input_tokens?: number;
+        output_tokens?: number;
         total_tokens?: number;
       };
     };
 
-    const supervisorResponse = data.choices?.[0]?.message?.content;
+    if (data.error) {
+      console.error('OpenRouter Responses API error:', data.error);
+      return NextResponse.json({ error: 'Supervisor service encountered an error' }, { status: 500 });
+    }
+
+    const supervisorResponse = data.output?.[0]?.content?.[0]?.text;
 
     if (!supervisorResponse) {
       return NextResponse.json({ error: 'No response from supervisor' }, { status: 500 });
@@ -166,8 +166,8 @@ export async function POST(request: NextRequest) {
         processingTime: `${processingTime}ms`,
         model: data.model || supervisorLevel.model,
         usage: {
-          promptTokens: usage.prompt_tokens || 0,
-          completionTokens: usage.completion_tokens || 0,
+          promptTokens: usage.input_tokens || 0,
+          completionTokens: usage.output_tokens || 0,
           totalTokens: usage.total_tokens || 0,
         },
         timestamp: new Date().toISOString(),
