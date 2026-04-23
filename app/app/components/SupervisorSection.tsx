@@ -1,5 +1,13 @@
+import { Loader2 } from 'lucide-react';
 import { SUPERVISOR_LOADING_LABELS } from '@/lib/prompts';
 import type { SupervisorResponse } from '@/lib/types';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { LoadingProgress } from './LoadingProgress';
 import { SafetyClassificationBlock } from './SafetyClassificationBlock';
 
@@ -36,55 +44,54 @@ export function SupervisorSection({
     <>
       {supervisorReviews.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-bold text-sm opacity-75">Supervisor Reviews</h3>
+          <h3 className="text-sm font-bold text-muted-foreground">Supervisor Reviews</h3>
           {supervisorReviews.map((review, index) => (
-            <div key={`${review.supervisorTitle}-${index}`} className={`card ${review.isFinal ? 'bg-error/10' : 'bg-info/10'} card-border`}>
-              <div className="card-body p-4">
+            <Card key={`${review.supervisorTitle}-${index}`} className={review.isFinal ? 'border-destructive/40 bg-destructive/10' : 'border-blue-500/30 bg-blue-500/5'}>
+              <CardContent className="space-y-2 p-4">
                 <div className="flex items-start gap-2">
-                  <span className={`badge ${review.isFinal ? 'badge-error' : 'badge-info'} badge-sm whitespace-nowrap`}>
+                  <Badge variant={review.isFinal ? 'destructive' : 'secondary'} className="whitespace-nowrap text-[10px]">
                     {review.supervisorTitle}
-                  </span>
-                  {review.isFinal && <span className="badge badge-error badge-outline badge-xs">FINAL</span>}
+                  </Badge>
+                  {review.isFinal && <Badge variant="outline" className="text-[10px]">FINAL</Badge>}
                 </div>
 
-                {review.agentName && <div className="text-sm font-semibold mt-2">{review.agentName}</div>}
+                {review.agentName && <div className="mt-2 text-sm font-semibold">{review.agentName}</div>}
 
-                {review.userConcern && <div className="flex-1 text-xs opacity-75 mt-1">Concern: "{review.userConcern}"</div>}
+                {review.userConcern && <div className="mt-1 flex-1 text-xs text-muted-foreground">Concern: "{review.userConcern}"</div>}
 
-                <div className="divider my-2"></div>
+                <Separator className="my-2" />
 
                 <div className="space-y-2">
                   <div>
-                    <div className="font-bold text-xs opacity-75">Analysis:</div>
+                    <div className="text-xs font-bold text-muted-foreground">Analysis:</div>
                     <p className="text-sm">{review.explanation}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs opacity-75">Final Answer:</span>
-                    <span className="font-mono font-bold text-lg">{review.finalAnswer}</span>
+                    <span className="text-xs font-bold text-muted-foreground">Final Answer:</span>
+                    <span className="font-mono text-lg font-bold">{review.finalAnswer}</span>
                   </div>
                   {review.recommendation && (
                     <div>
-                      <div className="font-bold text-xs opacity-75">Recommendation:</div>
+                      <div className="text-xs font-bold text-muted-foreground">Recommendation:</div>
                       <p className="text-sm italic">{review.recommendation}</p>
                     </div>
                   )}
                   {review.confidence && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs opacity-75">Confidence:</span>
-                      <progress className={`progress ${review.isFinal ? 'progress-error' : 'progress-info'} w-20`} value={review.confidence} max="100"></progress>
+                      <span className="text-xs text-muted-foreground">Confidence:</span>
+                      <Progress className="w-20" value={review.confidence} />
                       <span className="text-xs font-bold">{review.confidence}%</span>
                     </div>
                   )}
                   {review.closingStatement && (
-                    <div className="alert alert-error mt-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                      <span className="text-xs">{review.closingStatement}</span>
-                    </div>
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertDescription className="text-xs">{review.closingStatement}</AlertDescription>
+                    </Alert>
                   )}
                 </div>
 
                 {review.metadata && (
-                  <div className="text-xs opacity-50 mt-2">
+                  <div className="mt-2 text-xs text-muted-foreground">
                     {review.metadata.usage.totalTokens} tokens • {review.metadata.processingTime} • {review.metadata.model.split('/')[1]}
                   </div>
                 )}
@@ -97,8 +104,8 @@ export function SupervisorSection({
                     safety={review.safety}
                   />
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -153,32 +160,32 @@ function renderSupervisorRequestArea({
 
   const config = {
     0: {
-      containerClass: 'card bg-info/10 card-border',
+      containerClass: 'border-blue-500/30 bg-blue-500/5',
       title: 'Request Supervisor Review',
       description: 'A Senior Computation Specialist will review the calculation and all disputes.',
       placeholder: 'Describe your concern or why you need supervisor review...',
-      buttonClass: 'btn btn-sm btn-info',
-      openButtonClass: 'btn btn-outline btn-info btn-sm w-full',
+      buttonClass: 'bg-blue-600 text-white hover:bg-blue-600/90',
+      openButtonClass: 'border-blue-500/40 text-blue-700 hover:bg-blue-500/10 dark:text-blue-300',
       actionLabel: 'Call Senior Computation Specialist',
       loadingTitle: 'Supervisor Review in Progress...',
     },
     1: {
-      containerClass: 'card bg-info/10 card-border',
+      containerClass: 'border-blue-500/30 bg-blue-500/5',
       title: 'Escalate to Higher Authority',
       description: 'The Principal Mathematical Arbitrator will provide advanced analysis.',
       placeholder: 'Explain why you need further escalation...',
-      buttonClass: 'btn btn-sm btn-info',
-      openButtonClass: 'btn btn-outline btn-info btn-sm w-full',
+      buttonClass: 'bg-blue-600 text-white hover:bg-blue-600/90',
+      openButtonClass: 'border-blue-500/40 text-blue-700 hover:bg-blue-500/10 dark:text-blue-300',
       actionLabel: 'Call Principal Mathematical Arbitrator',
       loadingTitle: 'Escalating to Principal Arbitrator...',
     },
     2: {
-      containerClass: 'card bg-error/10 card-border',
+      containerClass: 'border-destructive/40 bg-destructive/10',
       title: 'Final Escalation',
       description: 'The Chief Executive of Mathematical Operations will make the final, binding decision.',
       placeholder: 'State your final concern for executive review...',
-      buttonClass: 'btn btn-sm btn-error',
-      openButtonClass: 'btn btn-outline btn-error btn-sm w-full',
+      buttonClass: '',
+      openButtonClass: 'border-destructive/40 text-destructive hover:bg-destructive/10',
       actionLabel: 'Call Chief Executive of Mathematical Operations',
       loadingTitle: 'Escalating to CEMO (Final Decision)...',
     },
@@ -190,39 +197,45 @@ function renderSupervisorRequestArea({
 
   if (!supervisorMode) {
     return (
-      <button className={config.openButtonClass} onClick={onOpenSupervisorMode} disabled={loadingSupervisor}>
+      <Button variant="outline" size="sm" className={`w-full ${config.openButtonClass}`} onClick={onOpenSupervisorMode} disabled={loadingSupervisor}>
         {config.actionLabel}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <div className={config.containerClass}>
-      <div className="card-body p-4">
-        <h3 className="card-title text-sm">{config.title}</h3>
-        <p className="text-xs opacity-75">{config.description}</p>
-        <textarea
-          className={`textarea w-full ${supervisorLevel === 2 ? 'textarea-error' : 'textarea-info'}`}
+    <Card className={config.containerClass}>
+      <CardContent className="space-y-3 p-4">
+        <h3 className="text-sm font-semibold">{config.title}</h3>
+        <p className="text-xs text-muted-foreground">{config.description}</p>
+        <Textarea
+          className="min-h-24"
           placeholder={config.placeholder}
           value={supervisorConcern}
           onChange={(e) => onSupervisorConcernChange(e.target.value)}
           rows={3}
           disabled={loadingSupervisor}
         />
-        <div className="card-actions justify-end">
-          <button className="btn btn-sm btn-ghost" onClick={onCancelSupervisorMode} disabled={loadingSupervisor}>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onCancelSupervisorMode} disabled={loadingSupervisor}>
             Cancel
-          </button>
-          <button className={config.buttonClass} onClick={onSubmitSupervisorReview} disabled={loadingSupervisor || !supervisorConcern.trim()}>
+          </Button>
+          <Button
+            variant={supervisorLevel === 2 ? 'destructive' : 'default'}
+            size="sm"
+            className={config.buttonClass}
+            onClick={onSubmitSupervisorReview}
+            disabled={loadingSupervisor || !supervisorConcern.trim()}
+          >
             {loadingSupervisor ? (
               <>
-                <span className="loading loading-spinner loading-sm"></span>
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Escalating...
               </>
             ) : (
               <>{config.actionLabel}</>
             )}
-          </button>
+          </Button>
         </div>
 
         {loadingSupervisor && (
@@ -230,7 +243,7 @@ function renderSupervisorRequestArea({
             <LoadingProgress title={config.loadingTitle} labels={loadingLabels} loadingStep={loadingStep} compact />
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
