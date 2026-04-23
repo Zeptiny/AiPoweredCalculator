@@ -2,7 +2,12 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: React.ComponentProps<'div'> & { orientation?: 'horizontal' | 'vertical'; decorative?: boolean }) {
+type SeparatorProps = React.ComponentProps<'div'> & {
+  orientation?: 'horizontal' | 'vertical';
+  decorative?: boolean;
+};
+
+function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
   return (
     <div
       role={decorative ? 'none' : 'separator'}

@@ -164,7 +164,6 @@ function renderSupervisorRequestArea({
       title: 'Request Supervisor Review',
       description: 'A Senior Computation Specialist will review the calculation and all disputes.',
       placeholder: 'Describe your concern or why you need supervisor review...',
-      buttonClass: 'bg-blue-600 text-white hover:bg-blue-600/90',
       openButtonClass: 'border-blue-500/40 text-blue-700 hover:bg-blue-500/10 dark:text-blue-300',
       actionLabel: 'Call Senior Computation Specialist',
       loadingTitle: 'Supervisor Review in Progress...',
@@ -174,7 +173,6 @@ function renderSupervisorRequestArea({
       title: 'Escalate to Higher Authority',
       description: 'The Principal Mathematical Arbitrator will provide advanced analysis.',
       placeholder: 'Explain why you need further escalation...',
-      buttonClass: 'bg-blue-600 text-white hover:bg-blue-600/90',
       openButtonClass: 'border-blue-500/40 text-blue-700 hover:bg-blue-500/10 dark:text-blue-300',
       actionLabel: 'Call Principal Mathematical Arbitrator',
       loadingTitle: 'Escalating to Principal Arbitrator...',
@@ -184,7 +182,6 @@ function renderSupervisorRequestArea({
       title: 'Final Escalation',
       description: 'The Chief Executive of Mathematical Operations will make the final, binding decision.',
       placeholder: 'State your final concern for executive review...',
-      buttonClass: '',
       openButtonClass: 'border-destructive/40 text-destructive hover:bg-destructive/10',
       actionLabel: 'Call Chief Executive of Mathematical Operations',
       loadingTitle: 'Escalating to CEMO (Final Decision)...',
@@ -223,7 +220,7 @@ function renderSupervisorRequestArea({
           <Button
             variant={supervisorLevel === 2 ? 'destructive' : 'default'}
             size="sm"
-            className={config.buttonClass}
+            className={supervisorLevel === 2 ? '' : 'bg-blue-600 text-white hover:bg-blue-600/90'}
             onClick={onSubmitSupervisorReview}
             disabled={loadingSupervisor || !supervisorConcern.trim()}
           >

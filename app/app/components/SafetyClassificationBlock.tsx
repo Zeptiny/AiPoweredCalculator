@@ -23,7 +23,13 @@ function SafetyCell({ label, isSafe, violatedCategories, classification }: { lab
               <div className="mb-1 text-xs text-muted-foreground">{classification}</div>
               <div className="flex flex-wrap gap-1">
                 {violatedCategories.map((cat, idx) => (
-                  <Badge key={`${cat}-${idx}`} variant="destructive" className="text-[10px]" title={CATEGORY_DESCRIPTIONS[cat] || cat}>
+                  <Badge
+                    key={`${cat}-${idx}`}
+                    variant="destructive"
+                    className="text-[10px]"
+                    title={CATEGORY_DESCRIPTIONS[cat] || cat}
+                    aria-label={`${cat}: ${CATEGORY_DESCRIPTIONS[cat] || cat}`}
+                  >
                     {cat}
                   </Badge>
                 ))}

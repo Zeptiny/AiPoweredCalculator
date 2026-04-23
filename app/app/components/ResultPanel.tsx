@@ -37,7 +37,7 @@ export function ResultPanel({ currentResult, loadingSafety }: ResultPanelProps) 
           <div className="space-y-2">
             <div>
               <div className="text-xs font-bold text-muted-foreground">Analysis:</div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{currentResult.explanation}</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{currentResult.explanation}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-muted-foreground">Result:</span>

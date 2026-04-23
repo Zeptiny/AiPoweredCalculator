@@ -35,6 +35,13 @@ interface CalculatorInputPanelProps {
   onCalculate: () => void;
 }
 
+function getButtonVariant(btn: string): 'default' | 'destructive' | 'secondary' | 'outline' {
+  if (btn === '=') return 'default';
+  if (btn === 'C') return 'destructive';
+  if (['+', '-', '*', '/', '^'].includes(btn)) return 'secondary';
+  return 'outline';
+}
+
 export function CalculatorInputPanel({
   expression,
   loading,
@@ -74,7 +81,7 @@ export function CalculatorInputPanel({
             size="lg"
             onClick={() => onButtonClick(btn)}
             disabled={loading}
-            variant={btn === '=' ? 'default' : btn === 'C' ? 'destructive' : ['+', '-', '*', '/', '^'].includes(btn) ? 'secondary' : 'outline'}
+            variant={getButtonVariant(btn)}
           >
             {btn}
           </Button>

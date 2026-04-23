@@ -41,7 +41,8 @@ export function HistorySidebar({
                   <CardContent className="p-0">
                     <button
                       type="button"
-                      className="w-full cursor-pointer p-4 text-left transition-colors hover:bg-muted/50"
+                      className="w-full p-4 text-left transition-colors hover:bg-muted/50"
+                      aria-label={`Load calculation: ${item.expression}`}
                       onClick={() => onLoadFromHistory(item)}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -76,6 +77,8 @@ export function HistorySidebar({
                         <button
                           type="button"
                           className="flex w-full items-center justify-between px-4 py-2 text-xs transition-colors hover:bg-muted/40"
+                          aria-expanded={expandedHistoryIndex === index}
+                          aria-controls={`history-disputes-${index}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             onToggleHistoryExpand(index);
@@ -86,7 +89,7 @@ export function HistorySidebar({
                         </button>
 
                         {expandedHistoryIndex === index && (
-                          <div className="space-y-2 bg-muted/40 p-4">
+                          <div id={`history-disputes-${index}`} className="space-y-2 bg-muted/40 p-4">
                             <div className="mb-2 text-xs font-bold text-muted-foreground">Original Response:</div>
                             <div className="rounded-md border border-border bg-background p-2 text-xs">
                               <div className="text-muted-foreground">

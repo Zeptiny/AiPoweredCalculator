@@ -47,7 +47,7 @@ export function DisputeSection({
             <Card key={`${dispute.disputeFeedback}-${index}`} className="border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="space-y-2 p-4">
                 <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="border-yellow-500/40 text-[10px] whitespace-nowrap text-yellow-700 dark:text-yellow-300">
+                  <Badge variant="outline" className="border-yellow-500/40 whitespace-nowrap text-[10px] text-yellow-700 dark:text-yellow-300">
                     Dispute Agent #{index + 1}
                   </Badge>
                 </div>
@@ -123,7 +123,6 @@ export function DisputeSection({
                 variant="secondary"
                 onClick={onSubmitDispute}
                 disabled={loading || !disputeFeedback.trim()}
-                className="bg-yellow-500 text-yellow-950 hover:bg-yellow-500/90"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit Dispute'}
               </Button>
