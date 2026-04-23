@@ -128,7 +128,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
         'X-Title': 'Professional AI Calculator'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct',
+        model: 'openai/gpt-oss-120b',
         input: messages,
         temperature: 0.7,
         text: {
@@ -248,7 +248,7 @@ Provide comprehensive analysis following the JSON format with "explanation" firs
       conversationHistory: updatedConversationHistory,
       metadata: {
         processingTime: `${processingTime}ms`,
-        model: data.model || 'meta-llama/llama-3.1-8b-instruct',
+        model: data.model || 'openai/gpt-oss-120b',
         usage: {
           promptTokens: usage.input_tokens || 0,
           completionTokens: usage.output_tokens || 0,
