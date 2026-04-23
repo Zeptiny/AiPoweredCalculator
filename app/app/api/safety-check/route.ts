@@ -86,15 +86,17 @@ Respond now with your assessment.
       };
     }
 
+    type SafetyOutputItem =
+      | { type: 'message'; role: 'assistant'; content: Array<{ type: 'output_text'; text: string }> }
+      | { type: 'reasoning'; summary: Array<{ type: 'summary_text'; text: string }> };
+
     const data = await response.json() as {
-      output?: Array<{
-        type: 'message';
-        role: 'assistant';
-        content: Array<{ type: 'output_text'; text: string }>;
-      }>;
+      output?: SafetyOutputItem[];
       error?: { code: string; message: string };
     };
-    const guardResponse = data.output?.[0]?.content?.[0]?.text?.trim() || '';
+    // Reasoning models prepend a 'reasoning' item before the 'message' item, so find by type
+    const outputMessage = data.output?.find((item): item is Extract<SafetyOutputItem, { type: 'message' }> => item.type === 'message');
+    const guardResponse = outputMessage?.content?.find(c => c.type === 'output_text')?.text?.trim() || '';
 
     console.log(`[Llama Guard] Raw response for ${role}:`, JSON.stringify(guardResponse));
 

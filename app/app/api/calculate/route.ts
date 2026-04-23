@@ -13,7 +13,7 @@ interface ResponseMessage {
   content: string | ResponseInputText[];
 }
 
-interface OpenRouterResponsesOutput {
+interface OpenRouterResponsesOutputMessage {
   id: string;
   type: 'message';
   role: 'assistant';
@@ -22,6 +22,14 @@ interface OpenRouterResponsesOutput {
     text: string;
   }>;
 }
+
+interface OpenRouterResponsesOutputReasoning {
+  id: string;
+  type: 'reasoning';
+  summary: Array<{ type: 'summary_text'; text: string }>;
+}
+
+type OpenRouterResponsesOutput = OpenRouterResponsesOutputMessage | OpenRouterResponsesOutputReasoning;
 
 interface OpenRouterResponsesResponse {
   id?: string;
@@ -162,8 +170,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract the assistant's response from output
-    const outputMessage = data.output?.[0];
-    const aiResponse = outputMessage?.content?.[0]?.text;
+    // Reasoning models prepend a 'reasoning' item before the 'message' item, so find by type
+    const outputMessage = data.output?.find((item): item is OpenRouterResponsesOutputMessage => item.type === 'message');
+    const aiResponse = outputMessage?.content?.find(c => c.type === 'output_text')?.text;
 
     if (!aiResponse) {
       return NextResponse.json(

@@ -73,12 +73,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Supervisor service encountered an error' }, { status: response.status });
     }
 
+    type SupervisorOutputItem =
+      | { type: 'message'; role: 'assistant'; content: Array<{ type: 'output_text'; text: string }> }
+      | { type: 'reasoning'; summary: Array<{ type: 'summary_text'; text: string }> };
+
     const data = (await response.json()) as {
-      output?: Array<{
-        type: 'message';
-        role: 'assistant';
-        content: Array<{ type: 'output_text'; text: string }>;
-      }>;
+      output?: SupervisorOutputItem[];
       model?: string;
       error?: { code: string; message: string };
       usage?: {
@@ -93,7 +93,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Supervisor service encountered an error' }, { status: 500 });
     }
 
-    const supervisorResponse = data.output?.[0]?.content?.[0]?.text;
+    // Reasoning models prepend a 'reasoning' item before the 'message' item, so find by type
+    const outputMessage = data.output?.find((item): item is Extract<SupervisorOutputItem, { type: 'message' }> => item.type === 'message');
+    const supervisorResponse = outputMessage?.content?.find(c => c.type === 'output_text')?.text;
 
     if (!supervisorResponse) {
       return NextResponse.json({ error: 'No response from supervisor' }, { status: 500 });
