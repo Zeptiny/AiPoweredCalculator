@@ -7,6 +7,9 @@ import { HistorySidebar } from '@/app/components/HistorySidebar';
 import { LoadingProgress } from '@/app/components/LoadingProgress';
 import { ResultPanel } from '@/app/components/ResultPanel';
 import { SupervisorSection } from '@/app/components/SupervisorSection';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { CALCULATION_LOADING_LABELS } from '@/lib/prompts';
 import type { CalculationResult, ChatMessage, DisputeResponse, SafetyInfo, SupervisorResponse } from '@/lib/types';
 
@@ -408,15 +411,15 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-base-200">
-      <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-4">
-        <div className="card flex-1 bg-base-100 shadow-xl">
-          <div className="card-body">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="card-title text-3xl font-bold">AI Computation Engine</h1>
-              <button className="btn btn-sm btn-outline" onClick={() => setShowHistory(!showHistory)}>
+    <div className="min-h-screen bg-muted/40 p-4 lg:p-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 lg:flex-row">
+        <Card className="flex-1">
+          <CardContent className="space-y-6 p-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold tracking-tight">AI Computation Engine</h1>
+              <Button variant="outline" size="sm" onClick={() => setShowHistory(!showHistory)}>
                 {showHistory ? 'Hide' : 'Show'} History
-              </button>
+              </Button>
             </div>
 
             <CalculatorInputPanel
@@ -428,21 +431,12 @@ export default function Home() {
               onCalculate={handleCalculate}
             />
 
-            {loading && (
-              <LoadingProgress
-                title="Processing Request..."
-                labels={CALCULATION_LOADING_LABELS}
-                loadingStep={loadingStep}
-              />
-            )}
+            {loading && <LoadingProgress title="Processing Request..." labels={CALCULATION_LOADING_LABELS} loadingStep={loadingStep} />}
 
             {error && (
-              <div className="alert alert-error">
-                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{error}</span>
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
             {currentResult && (
@@ -484,8 +478,8 @@ export default function Home() {
                 />
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {showHistory && (
           <HistorySidebar

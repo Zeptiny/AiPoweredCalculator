@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
 const BUTTONS = [
   '7', '8', '9', '/',
   '4', '5', '6', '*',
@@ -32,6 +35,13 @@ interface CalculatorInputPanelProps {
   onCalculate: () => void;
 }
 
+function getButtonVariant(btn: string): 'default' | 'destructive' | 'secondary' | 'outline' {
+  if (btn === '=') return 'default';
+  if (btn === 'C') return 'destructive';
+  if (['+', '-', '*', '/', '^'].includes(btn)) return 'secondary';
+  return 'outline';
+}
+
 export function CalculatorInputPanel({
   expression,
   loading,
@@ -42,12 +52,12 @@ export function CalculatorInputPanel({
 }: CalculatorInputPanelProps) {
   return (
     <>
-      <div className="form-control w-full mb-4">
-        <input
+      <div className="mb-4">
+        <Input
           type="text"
           value={expression}
           placeholder="Type or use buttons to build expression..."
-          className="input input-lg input-primary w-full text-2xl font-mono text-right"
+          className="h-14 text-right font-mono text-2xl"
           disabled={loading}
           onChange={(e) => {
             const value = e.target.value;
@@ -64,50 +74,47 @@ export function CalculatorInputPanel({
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className="mb-4 grid grid-cols-4 gap-2">
         {BUTTONS.map((btn) => (
-          <button
+          <Button
             key={btn}
+            size="lg"
             onClick={() => onButtonClick(btn)}
             disabled={loading}
-            className={`btn btn-lg ${
-              btn === '='
-                ? 'btn-primary'
-                : btn === 'C'
-                  ? 'btn-error'
-                  : ['+', '-', '*', '/', '^'].includes(btn)
-                    ? 'btn-accent'
-                    : 'btn-neutral'
-            }`}
+            variant={getButtonVariant(btn)}
           >
             {btn}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="mb-4 grid grid-cols-3 gap-2">
         {FUNCTION_BUTTONS.map((btn) => (
-          <button
+          <Button
             key={btn.label}
+            size="sm"
+            variant="secondary"
             onClick={() => onAppendExpression(btn.value)}
             disabled={loading}
-            className="btn btn-sm btn-secondary font-semibold hover:btn-accent transition-colors"
+            className="font-semibold"
           >
             {btn.label}
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="mb-6 flex gap-2">
         {CONSTANTS.map((constant) => (
-          <button
+          <Button
             key={constant.label}
+            size="sm"
+            variant="secondary"
             onClick={() => onAppendExpression(constant.value)}
             disabled={loading}
-            className="btn btn-sm btn-secondary flex-1 font-bold text-lg hover:btn-accent transition-colors"
+            className="flex-1 text-lg font-bold"
           >
             {constant.label}
-          </button>
+          </Button>
         ))}
       </div>
     </>

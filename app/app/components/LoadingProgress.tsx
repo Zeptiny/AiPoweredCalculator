@@ -1,3 +1,6 @@
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 interface LoadingProgressProps {
   title: string;
   labels: readonly string[];
@@ -7,19 +10,19 @@ interface LoadingProgressProps {
 
 export function LoadingProgress({ title, labels, loadingStep, compact = false }: LoadingProgressProps) {
   return (
-    <div className={compact ? 'p-3 bg-base-100 rounded-lg' : 'alert alert-info'}>
-      <div className="flex items-center gap-2 mb-2">
-        <span className={`loading loading-spinner ${compact ? 'loading-sm' : 'loading-md'}`}></span>
-        <span className={compact ? 'text-xs font-semibold' : 'font-bold'}>{title}</span>
+    <div className={cn('rounded-lg border border-border bg-card p-4', compact && 'bg-background p-3')}>
+      <div className="mb-2 flex items-center gap-2">
+        <Loader2 className={cn('animate-spin text-primary', compact ? 'h-4 w-4' : 'h-5 w-5')} />
+        <span className={cn('font-semibold', compact ? 'text-xs' : 'text-sm')}>{title}</span>
       </div>
-      <div className="text-xs space-y-1">
+      <div className="space-y-1 text-xs">
         {labels.map((label, idx) => {
           const step = idx + 1;
           if (loadingStep < step) return null;
 
           const isDone = loadingStep > step;
           return (
-            <div key={label} className={`flex items-center gap-2 transition-all duration-300 ${isDone ? 'opacity-100' : 'opacity-70'}`}>
+            <div key={label} className={cn('flex items-center gap-2 transition-all duration-300', isDone ? 'opacity-100' : 'opacity-70')}>
               {isDone ? '✓' : '○'} {label}
             </div>
           );

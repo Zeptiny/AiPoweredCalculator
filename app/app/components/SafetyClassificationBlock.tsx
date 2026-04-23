@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import { CATEGORY_DESCRIPTIONS } from '@/lib/safety';
 import type { SafetyResult } from '@/lib/types';
 
@@ -11,20 +12,26 @@ interface SafetyClassificationBlockProps {
 function SafetyCell({ label, isSafe, violatedCategories, classification }: { label: string; isSafe: boolean; violatedCategories?: string[]; classification: string }) {
   return (
     <div>
-      <span className="opacity-75">{label}:</span>{' '}
+      <span className="text-muted-foreground">{label}:</span>{' '}
       {isSafe ? (
-        <span className="badge badge-success badge-xs">Safe</span>
+        <Badge className="text-[10px]" variant="default">Safe</Badge>
       ) : (
         <>
-          <span className="badge badge-error badge-xs">Unsafe</span>
+          <Badge className="text-[10px]" variant="destructive">Unsafe</Badge>
           {violatedCategories && violatedCategories.length > 0 && (
             <div className="mt-1">
-              <div className="text-xs opacity-75 mb-1">{classification}</div>
+              <div className="mb-1 text-xs text-muted-foreground">{classification}</div>
               <div className="flex flex-wrap gap-1">
                 {violatedCategories.map((cat, idx) => (
-                  <div key={`${cat}-${idx}`} className="tooltip" data-tip={CATEGORY_DESCRIPTIONS[cat] || cat}>
-                    <span className="badge badge-error badge-xs">{cat}</span>
-                  </div>
+                  <Badge
+                    key={`${cat}-${idx}`}
+                    variant="destructive"
+                    className="text-[10px]"
+                    title={CATEGORY_DESCRIPTIONS[cat] || cat}
+                    aria-label={`${cat}: ${CATEGORY_DESCRIPTIONS[cat] || cat}`}
+                  >
+                    {cat}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -37,9 +44,9 @@ function SafetyCell({ label, isSafe, violatedCategories, classification }: { lab
 
 export function SafetyClassificationBlock({ title, leftLabel, rightLabel, safety }: SafetyClassificationBlockProps) {
   return (
-    <div className="mt-3 p-2 bg-base-100 rounded-lg">
-      <div className="text-xs font-semibold mb-2 opacity-75">{title}</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+    <div className="mt-3 rounded-lg border border-border bg-background p-3">
+      <div className="mb-2 text-xs font-semibold text-muted-foreground">{title}</div>
+      <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-2">
         <SafetyCell
           label={leftLabel}
           isSafe={safety.input.isSafe}
