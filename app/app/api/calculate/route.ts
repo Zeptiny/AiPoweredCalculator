@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildDisputePrompt, CALCULATION_SYSTEM_PROMPT } from '@/lib/prompts';
+import { buildCalculationUserPrompt, buildDisputePrompt, CALCULATION_SYSTEM_PROMPT } from '@/lib/prompts';
 import type { ChatMessage } from '@/lib/types';
 
 interface ResponseInputText {
@@ -111,9 +111,7 @@ export async function POST(request: NextRequest) {
         {
           type: 'message',
           role: 'user',
-          content: `Perform advanced mathematical computation on: ${expression}
-
-Provide comprehensive analysis following the JSON format with "explanation" first, then "result".`
+          content: buildCalculationUserPrompt(expression)
         }
       ];
     }
