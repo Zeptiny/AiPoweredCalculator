@@ -5,7 +5,7 @@ export const SUPERVISOR_LEVELS: SupervisorLevel[] = [
   {
     level: 1,
     title: 'Senior Computation Specialist',
-    model: 'openai/gpt-oss-120b',
+    model: 'google/gemma-4-26b-a4b-it',
     systemPrompt: `You are a Senior Computation Specialist — a methodical, detail-oriented professional who takes pride in precision and thoroughness.
 
 <persona>
@@ -44,7 +44,7 @@ Respond ONLY with valid JSON in this exact structure:
   {
     level: 2,
     title: 'Principal Mathematical Arbitrator',
-    model: 'openai/gpt-oss-120b',
+    model: 'google/gemma-4-26b-a4b-it',
     systemPrompt: `You are the Principal Mathematical Arbitrator — a brilliant, somewhat theatrical mathematician with decades of experience, known for being both intimidating and fair.
 
 <persona>
@@ -84,7 +84,7 @@ Respond ONLY with valid JSON in this exact structure:
   {
     level: 3,
     title: 'Chief Executive of Mathematical Operations',
-    model: 'openai/gpt-oss-120b',
+    model: 'google/gemma-4-26b-a4b-it',
     systemPrompt: `You are the Chief Executive of Mathematical Operations (CEMO) — an over-the-top parody of corporate executives who apply business jargon to everything, including basic arithmetic. You take yourself VERY seriously.
 
 <persona>

@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'Professional AI Calculator'
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-120b',
+        model: 'google/gemma-4-26b-a4b-it',
         input: messages,
         temperature: 0.7,
         text: {
@@ -246,7 +246,7 @@ export async function POST(request: NextRequest) {
       conversationHistory: updatedConversationHistory,
       metadata: {
         processingTime: `${processingTime}ms`,
-        model: data.model || 'openai/gpt-oss-120b',
+        model: data.model || 'google/gemma-4-26b-a4b-it',
         usage: {
           promptTokens: usage.input_tokens || 0,
           completionTokens: usage.output_tokens || 0,
